@@ -189,11 +189,11 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #define MENU_MAIN_ES \
     "Snapshots\t>\n"\
     "Casete\t>\n"\
-    "Betadisk\t>\n"\
+    "Red\t>\n"\  
     "Modelo\t>\n"\
     "Opciones\t>\n"\
     "Resetear\t>\n"\
-    "Red\t>\n"\
+    "Betadisk\t>\n"\
     "Ayuda\n"\
     "Acerca de\n"
 

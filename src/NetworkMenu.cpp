@@ -72,7 +72,6 @@ static EventGroupHandle_t s_wifi_eg = nullptr;
 #define WIFI_CONN_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
-static char ftp_resp[512];
 
 static bool s_wifi_stack_ready = false;
 static bool s_netif_sta_ready = false;
@@ -585,451 +584,6 @@ bool NetworkMenu::ensureWifiReady(const string &ssid, const string &pass) {
     return wifiConnect(ssid, pass);
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// FTP Client (modo passivo)
-// ═════════════════════════════════════════════════════════════════════════════
-
-static void ftpSetSocketTimeouts(int sock, int sec) {
-    struct timeval tv = { .tv_sec = sec, .tv_usec = 0 };
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-}
-
-static bool ftpIsPrivateIPv4(uint32_t addr) {
-    uint8_t a = addr & 0xff;
-    uint8_t b = (addr >> 8) & 0xff;
-    if (a == 10) return true;
-    if (a == 172 && b >= 16 && b <= 31) return true;
-    if (a == 192 && b == 168) return true;
-    return false;
-}
-
-static bool ftpTcpConnectTimeout(int sock, const struct sockaddr_in *sa, int timeout_sec) {
-    int flags = fcntl(sock, F_GETFL, 0);
-    if (flags >= 0) fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-
-    int r = connect(sock, (struct sockaddr *)sa, sizeof(*sa));
-    if (r == 0) {
-        if (flags >= 0) fcntl(sock, F_SETFL, flags);
-        return true;
-    }
-    if (errno != EINPROGRESS) {
-        if (flags >= 0) fcntl(sock, F_SETFL, flags);
-        return false;
-    }
-
-    fd_set wfds;
-    FD_ZERO(&wfds);
-    FD_SET(sock, &wfds);
-    struct timeval tv = { .tv_sec = timeout_sec, .tv_usec = 0 };
-    r = select(sock + 1, nullptr, &wfds, nullptr, &tv);
-    if (r <= 0) {
-        if (flags >= 0) fcntl(sock, F_SETFL, flags);
-        return false;
-    }
-
-    int err = 0;
-    socklen_t elen = sizeof(err);
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &elen);
-    if (flags >= 0) fcntl(sock, F_SETFL, flags);
-    return err == 0;
-}
-
-bool NetworkMenu::ftpReadLine(int sock, char *buf, int maxlen) {
-    int pos = 0; char c;
-    while (pos < maxlen - 1) {
-        if (recv(sock, &c, 1, 0) <= 0) return false;
-        if (c == '\n') break;
-        if (c != '\r') buf[pos++] = c;
-    }
-    buf[pos] = 0;
-    return true;
-}
-
-int NetworkMenu::ftpGetResponse(int sock, char *rbuf, int rlen) {
-    int code = 0;
-    while (true) {
-        if (!ftpReadLine(sock, rbuf, rlen)) return -1;
-        if ((int)strlen(rbuf) >= 4 && rbuf[3] == ' ') {
-            code = atoi(rbuf);
-            break;
-        }
-    }
-    return code;
-}
-
-bool NetworkMenu::ftpSendCmd(int sock, const char *cmd) {
-    char buf[300];
-    snprintf(buf, sizeof(buf), "%s\r\n", cmd);
-    return send(sock, buf, strlen(buf), 0) > 0;
-}
-
-static bool ftpResolveHost(const string &host, int port, struct sockaddr_in *sa) {
-    memset(sa, 0, sizeof(*sa));
-    sa->sin_family = AF_INET;
-    sa->sin_port = htons((uint16_t)port);
-
-    if (inet_aton(host.c_str(), &sa->sin_addr)) {
-        ESP_LOGI("FTP", "Host e IP: %s", host.c_str());
-        return true;
-    }
-
-    struct addrinfo hints = {};
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    char portstr[8];
-    snprintf(portstr, sizeof(portstr), "%d", port);
-
-    ESP_LOGI("FTP", "DNS: resolvendo '%s'...", host.c_str());
-    vTaskDelay(1);
-
-    struct addrinfo *res = nullptr;
-    int err = getaddrinfo(host.c_str(), portstr, &hints, &res);
-    if (err != 0 || !res) {
-        ESP_LOGE("FTP", "DNS falhou err=%d host='%s'", err, host.c_str());
-        return false;
-    }
-
-    struct sockaddr_in *addr = (struct sockaddr_in *)res->ai_addr;
-    sa->sin_addr = addr->sin_addr;
-    ESP_LOGI("FTP", "DNS OK -> %s", inet_ntoa(sa->sin_addr));
-    freeaddrinfo(res);
-    return true;
-}
-
-int NetworkMenu::ftpConnect(const string &host, int port,
-                            const string &user, const string &pass) {
-    const string h = sanitizeHost(host);
-    if (h.empty()) {
-        ESP_LOGE("FTP", "Host FTP vazio");
-        return -1;
-    }
-
-    ESP_LOGI("FTP", "Ligando a %s:%d user='%s'", h.c_str(), port, user.c_str());
-
-    struct sockaddr_in sa = {};
-    if (!ftpResolveHost(h, port, &sa)) return -1;
-
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-        ESP_LOGE("FTP", "socket() errno=%d", errno);
-        return -1;
-    }
-
-    ftpSetSocketTimeouts(sock, 30);
-
-    ESP_LOGI("FTP", "TCP connect %s:%d ...", inet_ntoa(sa.sin_addr), port);
-    vTaskDelay(pdMS_TO_TICKS(200));
-
-    if (!ftpTcpConnectTimeout(sock, &sa, 20)) {
-        int e = errno;
-        ESP_LOGE("FTP", "TCP connect errno=%d (%s)", e, strerror(e));
-        if (e == EHOSTUNREACH || e == ETIMEDOUT || e == 113 || e == 110) {
-            ESP_LOGE("FTP", "Sem rota ate o servidor (FTP externo/porta 21 bloqueada?)");
-        }
-        close(sock);
-        return -1;
-    }
-    ESP_LOGI("FTP", "TCP OK, aguardando banner 220");
-
-    int code = ftpGetResponse(sock, ftp_resp, sizeof(ftp_resp));
-    ESP_LOGI("FTP", "Banner: %d %s", code, ftp_resp);
-    if (code != 220) {
-        close(sock);
-        return -1;
-    }
-
-    char cmd[128];
-    snprintf(cmd, sizeof(cmd), "USER %s", user.c_str());
-    ftpSendCmd(sock, cmd);
-    code = ftpGetResponse(sock, ftp_resp, sizeof(ftp_resp));
-    ESP_LOGI("FTP", "USER: %d %s", code, ftp_resp);
-
-    if (code == 331) {
-        snprintf(cmd, sizeof(cmd), "PASS %s", pass.c_str());
-        ftpSendCmd(sock, cmd);
-        code = ftpGetResponse(sock, ftp_resp, sizeof(ftp_resp));
-        ESP_LOGI("FTP", "PASS: %d %s", code, ftp_resp);
-    }
-    if (code != 230) {
-        ESP_LOGE("FTP", "Login falhou codigo %d", code);
-        close(sock);
-        return -1;
-    }
-
-    ftpSendCmd(sock, "TYPE I");
-    ftpGetResponse(sock, ftp_resp, sizeof(ftp_resp));
-    ESP_LOGI("FTP", "Sessao FTP aberta");
-    return sock;
-}
-
-void NetworkMenu::ftpDisconnect(int sock) {
-    if (sock >= 0) {
-        ftpSendCmd(sock, "QUIT");
-        ftpGetResponse(sock, ftp_resp, sizeof(ftp_resp));
-        close(sock);
-    }
-}
-
-int NetworkMenu::ftpPasv(int ctrl_sock) {
-    ftpSendCmd(ctrl_sock, "PASV");
-    int code = ftpGetResponse(ctrl_sock, ftp_resp, sizeof(ftp_resp));
-    ESP_LOGI("FTP", "PASV: %d %s", code, ftp_resp);
-    if (code != 227) return -1;
-
-    char *p = strchr(ftp_resp, '(');
-    if (!p) return -1;
-    int h1, h2, h3, h4, p1, p2;
-    if (sscanf(p, "(%d,%d,%d,%d,%d,%d)", &h1, &h2, &h3, &h4, &p1, &p2) != 6) return -1;
-
-    char pasv_ip[32];
-    snprintf(pasv_ip, sizeof(pasv_ip), "%d.%d.%d.%d", h1, h2, h3, h4);
-
-    struct sockaddr_in da = {};
-    da.sin_family = AF_INET;
-    da.sin_port = htons(p1 * 256 + p2);
-    inet_aton(pasv_ip, &da.sin_addr);
-
-    struct sockaddr_in peer = {};
-    socklen_t plen = sizeof(peer);
-    if (getpeername(ctrl_sock, (struct sockaddr *)&peer, &plen) == 0) {
-        if (ftpIsPrivateIPv4(da.sin_addr.s_addr)) {
-            ESP_LOGW("FTP", "PASV IP privado %d.%d.%d.%d -> usa servidor %s",
-                h1, h2, h3, h4, inet_ntoa(peer.sin_addr));
-            da.sin_addr = peer.sin_addr;
-        }
-    }
-
-    int dsock = socket(AF_INET, SOCK_STREAM, 0);
-    if (dsock < 0) return -1;
-
-    ftpSetSocketTimeouts(dsock, 30);
-
-    ESP_LOGI("FTP", "PASV data connect %s:%d", inet_ntoa(da.sin_addr), ntohs(da.sin_port));
-    if (!ftpTcpConnectTimeout(dsock, &da, 15)) {
-        ESP_LOGE("FTP", "PASV data connect falhou errno=%d", errno);
-        close(dsock);
-        return -1;
-    }
-    ESP_LOGI("FTP", "PASV data channel OK");
-    return dsock;
-}
-
-vector<string> NetworkMenu::ftpList(int ctrl_sock, const string &path) {
-    vector<string> entries;
-
-    ESP_LOGI("FTP", "Listar path='%s'", path.c_str());
-
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "CWD %s", path.c_str());
-    ftpSendCmd(ctrl_sock, cmd);
-    int code = ftpGetResponse(ctrl_sock, ftp_resp, sizeof(ftp_resp));
-    ESP_LOGI("FTP", "CWD: %d %s", code, ftp_resp);
-    if (code != 250 && code != 200) return entries;
-
-    int dsock = ftpPasv(ctrl_sock);
-    if (dsock < 0) return entries;
-
-    ftpSendCmd(ctrl_sock, "NLST");
-    code = ftpGetResponse(ctrl_sock, ftp_resp, sizeof(ftp_resp));
-    ESP_LOGI("FTP", "NLST: %d %s", code, ftp_resp);
-    if (code != 125 && code != 150) {
-        close(dsock);
-        return entries;
-    }
-
-    char lbuf[512];
-    int pos = 0;
-    char c;
-    int lines = 0;
-    while (true) {
-        if (recv(dsock, &c, 1, 0) <= 0) break;
-        if (c == '\n') {
-            if (pos > 0 && lbuf[pos - 1] == '\r') pos--;
-            lbuf[pos] = 0;
-            if (pos > 0) {
-                string entry(lbuf);
-                size_t sl = entry.rfind('/');
-                if (sl != string::npos) entry = entry.substr(sl + 1);
-                if (!entry.empty()) entries.push_back(entry);
-                lines++;
-            }
-            pos = 0;
-            if ((lines & 0x1f) == 0) vTaskDelay(1);
-        } else {
-            if (pos < 511) lbuf[pos++] = c;
-        }
-    }
-    close(dsock);
-    code = ftpGetResponse(ctrl_sock, ftp_resp, sizeof(ftp_resp));
-    ESP_LOGI("FTP", "NLST fim: %d %s (%u entradas)", code, ftp_resp, (unsigned)entries.size());
-    return entries;
-}
-
-bool NetworkMenu::ftpDownload(int ctrl_sock, const string &remote, const string &local) {
-    const string fname = local.substr(local.rfind('/') + 1);
-    OSD::progressDialog("Download", fname, 0, 0);
-
-    ESP_LOGI("FTP", "Download remoto: %s", remote.c_str());
-    ESP_LOGI("FTP", "Destino local:   %s", local.c_str());
-
-    long total = 0;
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "SIZE %s", remote.c_str());
-    ftpSendCmd(ctrl_sock, cmd);
-    int code = ftpGetResponse(ctrl_sock, ftp_resp, sizeof(ftp_resp));
-    ESP_LOGI("FTP", "SIZE resp: %d | %s", code, ftp_resp);
-    if (code == 213) {
-        total = atol(ftp_resp + 4);
-        ESP_LOGI("FTP", "Tamanho remoto: %ld bytes", total);
-    } else {
-        ESP_LOGW("FTP", "SIZE indisponivel — download por blocos");
-    }
-
-    if (total > (long)netMaxFtpBuffer()) {
-        ESP_LOGW("FTP", "Arquivo grande (%ld bytes), gravacao por blocos", total);
-    }
-
-    int dsock = ftpPasv(ctrl_sock);
-    if (dsock < 0) {
-        ESP_LOGE("FTP", "PASV falhou para RETR");
-        OSD::progressDialog("Download", "", 0, 2);
-        return false;
-    }
-    ftpSetSocketTimeouts(dsock, 30);
-
-    snprintf(cmd, sizeof(cmd), "RETR %s", remote.c_str());
-    ftpSendCmd(ctrl_sock, cmd);
-    code = ftpGetResponse(ctrl_sock, ftp_resp, sizeof(ftp_resp));
-    ESP_LOGI("FTP", "RETR resp: %d | %s", code, ftp_resp);
-    if (code != 125 && code != 150) {
-        ESP_LOGE("FTP", "RETR rejeitado: %d", code);
-        close(dsock);
-        OSD::progressDialog("Download", "", 0, 2);
-        return false;
-    }
-
-    const bool net_sess = isNetworkSession();
-    const bool use_ram_buf = net_sess && total > 0 && (size_t)total <= netMaxFtpBuffer();
-
-    long received = 0;
-    bool ok = false;
-
-    if (use_ram_buf) {
-        uint8_t *buf = netAllocBuf((size_t)total);
-        if (!buf) {
-            ESP_LOGE("FTP", "Sem memoria para %ld bytes", total);
-            close(dsock);
-            OSD::progressDialog("Download", "", 0, 2);
-            return false;
-        }
-
-        uint8_t chunk[512];
-        int n;
-        while ((n = recv(dsock, chunk, sizeof(chunk), 0)) > 0) {
-            memcpy(buf + received, chunk, n);
-            received += n;
-            vTaskDelay(1);
-            int pct = (int)((received * 100) / total);
-            OSD::progressDialog("Download", fname, pct, 1);
-        }
-        close(dsock);
-        ftpGetResponse(ctrl_sock, ftp_resp, sizeof(ftp_resp));
-
-        if (total > 0 && received != total) {
-            ESP_LOGW("FTP", "Download incompleto: %ld/%ld bytes", received, total);
-        } else if (received > 0) {
-            bool first = true;
-            ok = netFlushToSd(local, buf, (size_t)received, first);
-        }
-        netFreeBuf(buf);
-    } else if (net_sess) {
-        uint8_t *accum = netAllocBuf(FTP_SD_FLUSH);
-        if (!accum) {
-            ESP_LOGE("FTP", "Sem memoria para buffer de gravacao");
-            close(dsock);
-            OSD::progressDialog("Download", "", 0, 2);
-            return false;
-        }
-
-        uint8_t chunk[512];
-        size_t acc_len = 0;
-        bool first = true;
-        int n;
-
-        while ((n = recv(dsock, chunk, sizeof(chunk), 0)) > 0) {
-            size_t off = 0;
-            while (off < (size_t)n) {
-                size_t space = FTP_SD_FLUSH - acc_len;
-                size_t copy = (size_t)n - off;
-                if (copy > space) copy = space;
-                memcpy(accum + acc_len, chunk + off, copy);
-                acc_len += copy;
-                off += copy;
-                if (acc_len >= FTP_SD_FLUSH) {
-                    if (!netFlushToSd(local, accum, acc_len, first)) {
-                        netFreeBuf(accum);
-                        close(dsock);
-                        OSD::progressDialog("Download", "", 0, 2);
-                        return false;
-                    }
-                    acc_len = 0;
-                }
-            }
-            received += n;
-            vTaskDelay(1);
-            if (total > 0) {
-                int pct = (int)((received * 100) / total);
-                OSD::progressDialog("Download", fname, pct, 1);
-            }
-        }
-        close(dsock);
-        ftpGetResponse(ctrl_sock, ftp_resp, sizeof(ftp_resp));
-        if (acc_len > 0) ok = netFlushToSd(local, accum, acc_len, first);
-        else ok = (received > 0 && !first);
-        netFreeBuf(accum);
-    } else {
-        if (!FileUtils::isSDReady()) {
-            ESP_LOGE("FTP", "SD nao disponivel para escrita");
-            close(dsock);
-            OSD::progressDialog("Download", "", 0, 2);
-            return false;
-        }
-
-        FILE *f = fopen(local.c_str(), "wb");
-        if (!f) {
-            ESP_LOGE("FTP", "fopen falhou: %s (errno %d)", local.c_str(), errno);
-            close(dsock);
-            OSD::progressDialog("Download", "", 0, 2);
-            return false;
-        }
-
-        uint8_t buf[512];
-        int n;
-        const long yield_interval = 32768;
-        while ((n = recv(dsock, buf, sizeof(buf), 0)) > 0) {
-            fwrite(buf, 1, n, f);
-            received += n;
-            if ((received % yield_interval) < n) vTaskDelay(1);
-            if (total > 0) {
-                int pct = (int)((received * 100) / total);
-                OSD::progressDialog("Download", fname, pct, 1);
-            }
-        }
-        fflush(f);
-        fclose(f);
-        close(dsock);
-        ftpGetResponse(ctrl_sock, ftp_resp, sizeof(ftp_resp));
-        ok = (received > 0);
-    }
-
-    const bool complete = (total <= 0) || (received == total);
-    ESP_LOGI("FTP", "Download concluido: %ld bytes (%s)%s",
-        received, ok ? "OK" : "falhou", complete ? "" : " [incompleto]");
-    if (ok) OSD::progressDialog("Download", fname, 100, 1);
-    OSD::progressDialog("Download", "", 0, 2);
-    return ok && received > 0 && complete;
-}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Menu: Configurar WiFi
@@ -1089,38 +643,6 @@ void NetworkMenu::proxyConfig() {
     OSD::osdCenteredMsg(NET_MSG_WIFI_SAVED[Config::lang], LEVEL_OK, 1000);
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Menu: Configurar FTP
-// ═════════════════════════════════════════════════════════════════════════════
-
-void NetworkMenu::ftpConfig() {
-    NetConfig cfg = loadConfig();
-
-    string host = OSD::input(3, 3, NET_LBL_HOST[Config::lang],
-        cfg.ftp_host, 20, 64, zxColor(7,1), zxColor(1,0), false);
-    if (host.empty()) return; // ESC
-    cfg.ftp_host = sanitizeHost(host);
-    if (cfg.ftp_host.empty()) return;
-
-    string user = OSD::input(3, 4, NET_LBL_USER[Config::lang],
-        cfg.ftp_user, 20, 32, zxColor(7,1), zxColor(1,0), false);
-    if (!user.empty()) cfg.ftp_user = user;
-
-    string pass = OSD::input(3, 5, NET_LBL_FTPPASS[Config::lang],
-        cfg.ftp_pass, 20, 64, zxColor(7,1), zxColor(1,0), false);
-    cfg.ftp_pass = pass;
-
-    string path = OSD::input(3, 6, NET_LBL_PATH[Config::lang],
-        cfg.ftp_path, 20, 128, zxColor(7,1), zxColor(1,0), false);
-    if (!path.empty()) cfg.ftp_path = path;
-
-    saveConfig(cfg);
-    OSD::osdCenteredMsg(NET_MSG_FTP_SAVED[Config::lang], LEVEL_OK, 1000);
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Menu: Browser FTP
-// ═════════════════════════════════════════════════════════════════════════════
 
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1304,7 +826,7 @@ void NetworkMenu::wosSearch() {
     for (auto &t : titles)
         smenu += t.title.substr(0, 36) + "\n";
 
-    OSD::menu_level    = 1;
+    OSD::menu_level    = 2;
     OSD::menu_curopt   = 1;
     OSD::menu_saverect = true;
     uint8_t sel = OSD::menuRun(smenu);
@@ -1344,55 +866,64 @@ void NetworkMenu::wosSearch() {
     }
     s_http_buf[s_http_len] = 0;
 
-    // Procura primeiro TAP ou TZX zip
-    string file_zip;
-    string file_name;
+    // Parseia TODAS as versoes do JSON (qualquer extensao filtrada pelo proxy)
+    struct WosFile {
+        string path;   // path completo (ex: /pub/sinclair/games/r/Exolon.tzx.zip)
+        string name;   // nome amigavel sem .zip (ex: Exolon.tzx)
+    };
+    vector<WosFile> files;
     const char *fp = (const char *)s_http_buf;
-    while (true) {
+    while (files.size() < 16) {
         const char *fid = strstr(fp, "\"file_id\":\"");
         if (!fid) break;
         fid += 11;
         const char *fe = strchr(fid, '"');
         if (!fe) break;
         string fpath(fid, fe - fid);
-        // Unescape
+        fp = fe + 1;
+
+        // Unescape \/ -> /
         string clean;
         for (size_t i = 0; i < fpath.size(); i++) {
             if (fpath[i] == '\\' && i+1 < fpath.size() && fpath[i+1] == '/') {
                 clean += '/'; i++;
             } else clean += fpath[i];
         }
-        // Pega TAP ou TZX zip
-        string lc = clean;
-        for (auto &ch : lc) ch = tolower(ch);
-        if ((lc.find(".tap.zip") != string::npos || lc.find(".tzx.zip") != string::npos)) {
-            file_zip = clean;
-            // Nome do arquivo sem .zip
-            file_name = clean.substr(clean.rfind('/') + 1);
-            file_name = file_name.substr(0, file_name.size() - 4); // remove .zip
-            break;
-        }
-        fp = fe + 1;
+
+        WosFile wf;
+        wf.path = clean;
+        // Nome amigavel: ultimo segmento, sem .zip
+        wf.name = clean.substr(clean.rfind('/') + 1);
+        if (wf.name.size() > 4 && wf.name.substr(wf.name.size() - 4) == ".zip")
+            wf.name = wf.name.substr(0, wf.name.size() - 4);
+        files.push_back(wf);
     }
 
     heap_caps_free(s_http_buf); s_http_buf = nullptr;
 
-    if (file_zip.empty()) {
-        OSD::osdCenteredMsg("Sem arquivo TAP/TZX", LEVEL_WARN, 1500);
+    if (files.empty()) {
+        OSD::osdCenteredMsg("Sem arquivos", LEVEL_WARN, 1500);
         return;
     }
 
-    // Confirma download
-    uint8_t res = OSD::msgDialog(
-        NET_DLG_DOWNLOAD[Config::lang],
-        chosen.title.substr(0, 34),
-        MSGDIALOG_YESNO
-    );
-    if (res != DLG_YES) return;
+    // Menu de versoes — usuario escolhe ou ESC para voltar
+    string vmenu = chosen.title.substr(0, 36) + "\n";
+    for (auto &f : files)
+        vmenu += f.name.substr(0, 38) + "\n";
 
-    // Download do ZIP
+    OSD::menu_level    = 3;
+    OSD::menu_curopt   = 1;
+    OSD::menu_saverect = true;
+    uint8_t vsel = OSD::menuRun(vmenu);
+    if (vsel == 0) return; // ESC volta
+
+    const string file_zip  = files[vsel - 1].path;
+    const string file_name = files[vsel - 1].name;
+
+    // Download via proxy
     string dl_url = proxy + "?action=download&file=" + file_zip;
     ESP_LOGI("WOS", "Download: %s", dl_url.c_str());
+
 
     s_http_buf = (uint8_t *)heap_caps_malloc(512 * 1024, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!s_http_buf) {
@@ -1445,159 +976,4 @@ void NetworkMenu::wosSearch() {
     }
 
     OSD::osdCenteredMsg(NET_MSG_DOWNLOAD_OK[Config::lang], LEVEL_OK, 1500);
-}
-
-void NetworkMenu::ftpBrowser() {
-    NetConfig cfg = loadConfig();
-
-    // Conecta WiFi primeiro
-    if (!ensureWifiReady(cfg.wifi_ssid, cfg.wifi_pass)) {
-        ESP_LOGE("NET", "WiFi indisponivel");
-        OSD::osdCenteredMsg(NET_MSG_FTP_NOWIFI[Config::lang], LEVEL_ERROR, 2000);
-        return;
-    }
-
-    // Menu principal de rede — sem FTP
-    {
-        OSD::menu_level    = 1;
-        OSD::menu_curopt   = 1;
-        OSD::menu_saverect = true;
-        uint8_t mode = OSD::menuRun("Acesso Rede\nConfig. WiFi\nBuscar WoS\n");
-        if (mode == 0) return;
-        if (mode == 1) { wifiConfig(); return; }
-        if (mode == 2) { wosSearch();  return; }
-        return;
-    }
-
-    // Código FTP abaixo não acessível pelo menu mas mantido para compilar
-    int ctrl = -1;
-    string cur_path = cfg.ftp_path;
-    while (cur_path.size() > 1 && cur_path.back() == '/') cur_path.pop_back();
-
-    while (true) {
-        showWifiStatusOverlay(NET_MSG_FTP_LISTING[Config::lang], LEVEL_INFO);
-
-        ESP_LOGI("FTP", "Heap livre antes menuRun: %d bytes", 
-        heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
-
-        vector<string> entries = ftpList(ctrl, cur_path);
-
-        hideWifiStatusOverlay();
-
-        if (entries.empty()) {
-            OSD::osdCenteredMsg(NET_MSG_FTP_EMPTYDIR[Config::lang], LEVEL_WARN, 1500);
-            // Sobe um nível automaticamente
-            size_t sl = cur_path.rfind('/');
-            if (sl == 0 || sl == string::npos) break;
-            cur_path = cur_path.substr(0, sl);
-            continue;
-        }
-
-        // Monta string do menu — título + entradas
-        string title = cur_path;
-        if (title.size() > 36) title = ".." + title.substr(title.size() - 34);
-        string ftp_menu = title + "\n";
-
-        bool has_parent = (cur_path.size() > 1 && cur_path != cfg.ftp_path);
-        if (has_parent) ftp_menu += "../\n";
-
-        for (const string &e : entries)
-            ftp_menu += e.substr(0, 38) + "\n";
-
-        OSD::menu_level    = 1;
-        OSD::menu_curopt   = 1;
-        OSD::menu_saverect = true;
-
-        uint8_t sel = OSD::menuRun(ftp_menu);
-        if (sel == 0) break; // ESC sai do browser
-
-        int idx = sel - 1;
-
-        if (has_parent) {
-            if (idx == 0) {
-                // Sobe um nível
-                size_t sl = cur_path.rfind('/');
-                cur_path = (sl == 0) ? "/" : cur_path.substr(0, sl);
-                continue;
-            }
-            idx--;
-        }
-
-        if (idx < 0 || idx >= (int)entries.size()) continue;
-
-        string selected  = entries[idx];
-        string full_path = cur_path + (cur_path.back() == '/' ? "" : "/") + selected;
-
-        // Tenta entrar como diretório (CWD)
-        char cmd[512];
-        snprintf(cmd, sizeof(cmd), "CWD %s", full_path.c_str());
-        ftpSendCmd(ctrl, cmd);
-        int code = ftpGetResponse(ctrl, ftp_resp, sizeof(ftp_resp));
-
-        if (code == 250) {
-            // É um diretório — navega
-            cur_path = full_path;
-        } else {
-            // É arquivo — pergunta se quer baixar
-            uint8_t res = OSD::msgDialog(
-                NET_DLG_DOWNLOAD[Config::lang],
-                selected.substr(0, 34),
-                MSGDIALOG_YESNO
-            );
-            if (res == DLG_YES) {
-                const string dest = netFtpDestPath(selected);
-
-                ESP_LOGI("FTP", "MountPoint: [%s]", FileUtils::MountPoint.c_str());
-                ESP_LOGI("FTP", "TAP_Path:   [%s]", FileUtils::TAP_Path.c_str());
-                ESP_LOGI("FTP", "SNA_Path:   [%s]", FileUtils::SNA_Path.c_str());
-                ESP_LOGI("FTP", "dest final: [%s]", dest.c_str());
-
-                if (ftpDownload(ctrl, full_path, dest)) {
-                    OSD::osdCenteredMsg(NET_MSG_DOWNLOAD_OK[Config::lang], LEVEL_OK, 1500);
-
-                    if (netFileIsGame(dest)) {
-                        uint8_t load = OSD::msgDialog(
-                            NET_DLG_LOAD_GAME[Config::lang],
-                            selected.substr(0, 34),
-                            MSGDIALOG_YESNO
-                        );
-                      if (load == DLG_YES) {
-                        restoreAfterNetwork();
-                        
-                        // Debug SD
-                        ESP_LOGI("FTP", "SDReady=%d", FileUtils::SDReady ? 1 : 0);
-                        struct stat st;
-                        if (stat(dest.c_str(), &st) == 0) {
-                            ESP_LOGI("FTP", "Arquivo existe: %s (%ld bytes)", dest.c_str(), st.st_size);
-                        } else {
-                            ESP_LOGE("FTP", "Arquivo NAO existe: %s errno=%d", dest.c_str(), errno);
-                        }
-                        DIR *dir = opendir("/sd");
-                        if (dir) {
-                            struct dirent *e;
-                            while ((e = readdir(dir)) != NULL)
-                                ESP_LOGI("FTP", "SD: %s", e->d_name);
-                            closedir(dir);
-                        } else {
-                            ESP_LOGE("FTP", "opendir /sd falhou errno=%d", errno);
-                        }
-
-                        if (netLoadDownloadedFile(dest)) {
-                            s_exit_osd_after_load = true;
-                            OSD::restoreBackbufferData();
-                        } else {
-                            OSD::osdCenteredMsg(NET_MSG_DOWNLOAD_FAIL[Config::lang], LEVEL_ERROR, 2000);
-                        }
-                        ftpDisconnect(ctrl);
-                        return;
-                        }
-                    }
-                } else {
-                    OSD::osdCenteredMsg(NET_MSG_DOWNLOAD_FAIL[Config::lang], LEVEL_ERROR, 2000);
-                }
-            }
-        }
-    }
-
-    ftpDisconnect(ctrl);
 }

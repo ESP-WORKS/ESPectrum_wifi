@@ -174,11 +174,11 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #define MENU_MAIN_PT \
     "Snapshots\t>\n"\
     "Fita K7\t>\n"\
-    "Betadisk\t>\n"\
+    "Acesso Rede\t>\n"\
     "Hardware\t>\n"\
     "Op\x87\x94" "es\t>\n"\
     "Reiniciar\t>\n"\
-    "Acesso Rede\t>\n"\
+    "Betadisk\t>\n"\
     "Ajuda\n"\
     "Sobre\n"
 

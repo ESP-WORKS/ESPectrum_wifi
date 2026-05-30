@@ -18,10 +18,8 @@ public:
     // Chamados pelo dispatcher em OSDMain.cpp (opt == 7 do menu principal)
     static void wifiConfig();
     static void proxyConfig();
-    static void ftpConfig();
-    static void ftpBrowser();
+
     static void wosSearch();
-    static void ftpSearch(int ctrl, const string &base_path);
 
     static bool wifi_connected; // exposto para o event handler
 
