@@ -1,7 +1,6 @@
 /*
 
 ESPectrum Fork — NetworkMenu.h
-Menu de Acesso à Rede: WiFi + cliente FTP browser.
 Configurações salvas em NVS, namespace "storage" (igual ao ESPConfig).
 
 */
@@ -41,11 +40,6 @@ private:
     struct NetConfig {
         string wifi_ssid = "";
         string wifi_pass = "";
-        string ftp_host  = "";
-        string ftp_user  = "anonymous";
-        string ftp_pass  = "guest";
-        string ftp_path  = "/";
-        int    ftp_port  = 21;
         string proxy_url = "http://alternativebits.com/wos.php";
     };
 
@@ -57,17 +51,6 @@ private:
     static bool wifiConnect(const string &ssid, const string &pass);
     static bool ensureWifiReady(const string &ssid, const string &pass);
 
-    // ── FTP Client ───────────────────────────────────────────────────────────
-    static int  ftpConnect(const string &host, int port,
-                           const string &user, const string &pass);
-    static void ftpDisconnect(int sock);
-    static int  ftpPasv(int ctrl_sock);
-    static vector<string> ftpList(int ctrl_sock, const string &path);
-    static bool ftpDownload(int ctrl_sock, const string &remote,
-                            const string &local);
-    static bool ftpReadLine(int sock, char *buf, int maxlen);
-    static int  ftpGetResponse(int sock, char *rbuf, int rlen);
-    static bool ftpSendCmd(int sock, const char *cmd);
 };
 
 #endif // ESPECTRUM_NETWORKMENU_H

@@ -56,11 +56,6 @@ using namespace std;
 #define NVS_NS        "storage"
 #define NVS_WIFI_SSID "net_ssid"
 #define NVS_WIFI_PASS "net_pass"
-#define NVS_FTP_HOST  "ftp_host"
-#define NVS_FTP_USER  "ftp_user"
-#define NVS_FTP_PASS  "ftp_pass"
-#define NVS_FTP_PATH  "ftp_path"
-#define NVS_FTP_PORT  "ftp_port"
 #define NVS_PROXY_URL "proxy_url"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,9 +78,6 @@ static bool s_network_session = false;
 static bool s_wifi_awaiting_ip = false;
 static bool s_exit_osd_after_load = false;
 
-static const size_t FTP_SD_FLUSH = 8192; // heap/PSRAM — nunca na pilha da task main (8KB)
-static const size_t FTP_MAX_RAM_DL_PSRAM = 2 * 1024 * 1024;
-static const size_t FTP_MAX_RAM_DL_NOPS = 192 * 1024;
 
 static uint8_t *netAllocBuf(size_t sz) {
     uint8_t *p = (uint8_t *)heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -112,6 +104,8 @@ static string netFtpDestPath(const string &filename) {
     dest += filename;
     return dest;
 }
+
+
 
 static bool netLoadDownloadedFile(const string &dest) {
     const string ext = FileUtils::getLCaseExt(dest);
@@ -159,9 +153,7 @@ void NetworkMenu::clearExitOsdAfterLoad() {
     s_exit_osd_after_load = false;
 }
 
-static size_t netMaxFtpBuffer() {
-    return Config::psram_size ? FTP_MAX_RAM_DL_PSRAM : FTP_MAX_RAM_DL_NOPS;
-}
+
 
 // Grava no SD com WiFi parado durante toda a escrita (WiFi nao pode voltar apos mount).
 static bool netFlushToSd(const string &local, const uint8_t *data, size_t len, bool &first) {
@@ -280,14 +272,7 @@ NetworkMenu::NetConfig NetworkMenu::loadConfig() {
 
     cfg.wifi_ssid = sanitizeWifiText(nvsGetStr(h, NVS_WIFI_SSID, ""), 32);
     cfg.wifi_pass = sanitizeWifiText(nvsGetStr(h, NVS_WIFI_PASS, ""), 64);
-    cfg.ftp_host  = sanitizeHost(nvsGetStr(h, NVS_FTP_HOST,  ""));
-    cfg.ftp_user  = nvsGetStr(h, NVS_FTP_USER,  "anonymous");
-    cfg.ftp_pass  = nvsGetStr(h, NVS_FTP_PASS,  "guest");
-    cfg.ftp_path  = nvsGetStr(h, NVS_FTP_PATH,  "/");
 
-    uint32_t port = 21;
-    nvs_get_u32(h, NVS_FTP_PORT, &port);
-    cfg.ftp_port = (int)port;
 
     cfg.proxy_url = nvsGetStr(h, NVS_PROXY_URL, "http://alternativebits.com/wos.php");
 
@@ -303,11 +288,6 @@ void NetworkMenu::saveConfig(const NetConfig &cfg) {
     string pass = sanitizeWifiText(cfg.wifi_pass, 64);
     nvs_set_str(h, NVS_WIFI_SSID, ssid.c_str());
     nvs_set_str(h, NVS_WIFI_PASS, pass.c_str());
-    nvs_set_str(h, NVS_FTP_HOST,  sanitizeHost(cfg.ftp_host).c_str());
-    nvs_set_str(h, NVS_FTP_USER,  cfg.ftp_user.c_str());
-    nvs_set_str(h, NVS_FTP_PASS,  cfg.ftp_pass.c_str());
-    nvs_set_str(h, NVS_FTP_PATH,  cfg.ftp_path.c_str());
-    nvs_set_u32(h, NVS_FTP_PORT,  (uint32_t)cfg.ftp_port);
     nvs_set_str(h, NVS_PROXY_URL,  cfg.proxy_url.c_str());
 
     nvs_commit(h);
@@ -592,17 +572,27 @@ bool NetworkMenu::ensureWifiReady(const string &ssid, const string &pass) {
 void NetworkMenu::wifiConfig() {
     NetConfig cfg = loadConfig();
 
+    OSD::saveBackbufferData(0, 0, OSD::scrW, OSD::scrH, true);
+
     string new_ssid = OSD::input(3, 3,
         NET_LBL_SSID[Config::lang], cfg.wifi_ssid,
         6, 32, zxColor(7,1), zxColor(1,0), false);
-    if (new_ssid.empty()) return; // ESC
+    if (new_ssid.empty()) {
+        OSD::restoreBackbufferData(true);
+        return; // ESC
+    }
     cfg.wifi_ssid = sanitizeWifiText(new_ssid, 32);
-    if (cfg.wifi_ssid.empty()) return;
+    if (cfg.wifi_ssid.empty()) {
+        OSD::restoreBackbufferData(true);
+        return;
+    }
 
     string new_pass = OSD::input(3, 4,
         NET_LBL_PASS[Config::lang], cfg.wifi_pass,
         6, 64, zxColor(7,1), zxColor(1,0), false);
     cfg.wifi_pass = sanitizeWifiText(new_pass, 64); // pode ser vazia (rede aberta)
+
+    OSD::restoreBackbufferData(true);
 
     saveConfig(cfg);
     OSD::osdCenteredMsg(NET_MSG_WIFI_SAVED[Config::lang], LEVEL_OK, 1000);
@@ -633,8 +623,13 @@ static string sanitizeUrl(const string &s, size_t maxLen) {
 void NetworkMenu::proxyConfig() {
     NetConfig cfg = loadConfig();
 
+    OSD::saveBackbufferData(0, 0, OSD::scrW, OSD::scrH, true);
+
     string url = OSD::input(3, 3, NET_LBL_PROXY[Config::lang],
         cfg.proxy_url, 20, 96, zxColor(7,1), zxColor(1,0), false);
+
+    OSD::restoreBackbufferData(true);
+
     if (url.empty()) return; // ESC
     cfg.proxy_url = sanitizeUrl(url, 96);
     if (cfg.proxy_url.empty()) return;
@@ -736,10 +731,12 @@ void NetworkMenu::wosSearch() {
         return;
     }
 
-    // Campo de busca — input dentro do menu Acesso Rede que ainda esta ativo
+    // Campo de busca — salva tela antes pra apagar o input ao sair
+    OSD::saveBackbufferData(0, 0, OSD::scrW, OSD::scrH, true);
     string term = OSD::input(3, 3,
         Config::lang == 0 ? "Title: " : "Titulo: ", "",
         20, 32, zxColor(7,1), zxColor(1,0), false);
+    OSD::restoreBackbufferData(true);
     if (term.empty()) return;
 
     // Aloca buffer HTTP na PSRAM

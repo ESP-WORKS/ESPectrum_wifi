@@ -1660,7 +1660,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                             }
                         }
                     } else {
-                        menu_curopt = 3;
+                        menu_curopt = 7;
                         break;
                     }
                 }
@@ -3166,7 +3166,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                         }
                     }
                     else {
-                        menu_curopt = 7;
+                        menu_curopt = 3;
                         break;
                     }
                 }

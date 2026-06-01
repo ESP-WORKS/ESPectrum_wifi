@@ -207,11 +207,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #define NET_MSG_WIFI_OK_ES          "WiFi conectado!"
 #define NET_MSG_WIFI_FAIL_ES        "Fallo conexion WiFi"
 #define NET_MSG_WIFI_SAVED_ES       "Config. WiFi guardada"
-#define NET_MSG_FTP_SAVED_ES        "Config. FTP guardada"
-#define NET_MSG_FTP_CONNECTING_ES   "Conectando al FTP..."
-#define NET_MSG_FTP_FAIL_ES         "Fallo conexion FTP"
-#define NET_MSG_FTP_LISTING_ES      "Listando..."
-#define NET_MSG_FTP_NOCONFIG_ES     "Configure FTP primero!"
+
 #define NET_MSG_FTP_NOWIFI_ES       "Sin WiFi. Configure primero."
 #define NET_MSG_FTP_EMPTYDIR_ES     "Dir vacio o error"
 #define NET_MSG_DOWNLOAD_ES         "Descargando..."
@@ -224,7 +220,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #define NET_LBL_PASS_ES             "Contrasena: "
 #define NET_LBL_HOST_ES             "Host: "
 #define NET_LBL_USER_ES             "Usuario: "
-#define NET_LBL_FTPPASS_ES          "Contrasena: "
+
 #define NET_LBL_PATH_ES             "Ruta: "
 #define NET_LBL_PROXY_ES            "Proxy: "
 
