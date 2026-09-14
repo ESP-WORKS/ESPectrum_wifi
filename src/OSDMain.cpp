@@ -3140,6 +3140,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                 // ***********************************************************************************
                 // NETWORK MENU
                 // ***********************************************************************************
+                NetworkMenu::cacheWifiFromSd(); // le wificonfig.rc antes de desmontar SD
                 NetworkMenu::prepareForNetwork();
                 menu_saverect = true;
                 menu_curopt = 1;
@@ -3147,18 +3148,13 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                     menu_level = 1;
                     uint8_t net_num = menuRun(MENU_NET[Config::lang]);
                     if (net_num == 1) {
-                        NetworkMenu::wifiConfig();
+                        NetworkMenu::proxyConfig();
                         menu_curopt = 1;
                         menu_saverect = false;
                     }
                     else if (net_num == 2) {
-                        NetworkMenu::proxyConfig();
-                        menu_curopt = 2;
-                        menu_saverect = false;
-                    }
-                    else if (net_num == 3) {
                         NetworkMenu::wosSearch();
-                        menu_curopt = 3;
+                        menu_curopt = 2;
                         menu_saverect = false;
                         if (NetworkMenu::shouldExitOsdAfterLoad()) {
                             NetworkMenu::clearExitOsdAfterLoad();
@@ -3166,7 +3162,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                         }
                     }
                     else {
-                        menu_curopt = 3;
+                        menu_curopt = 2;
                         break;
                     }
                 }

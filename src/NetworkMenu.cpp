@@ -78,6 +78,11 @@ static bool s_network_session = false;
 static bool s_wifi_awaiting_ip = false;
 static bool s_exit_osd_after_load = false;
 
+// Cache de credenciais WiFi lidas do SD antes de desmontar
+static string s_cached_ssid = "";
+static string s_cached_pass = "";
+static bool   s_wifi_cache_loaded = false;
+
 
 static uint8_t *netAllocBuf(size_t sz) {
     uint8_t *p = (uint8_t *)heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -265,18 +270,59 @@ static string nvsGetStr(nvs_handle_t h, const char *key, const char *def = "") {
 // Config — NVS load / save
 // ═════════════════════════════════════════════════════════════════════════════
 
+// Lê /sd/wificonfig.rc enquanto SD ainda está montado e cacheia em memória.
+// Deve ser chamado ANTES de prepareForNetwork() / desmonte do SD.
+void NetworkMenu::cacheWifiFromSd() {
+    if (s_wifi_cache_loaded) return; // ja leu
+
+    // Se SD nao estiver montado, tenta montar agora (fallback MISO incluido)
+    if (!FileUtils::SDReady) {
+        ESP_LOGI("NET", "cacheWifiFromSd: SD desmontado, tentando montar...");
+        FileUtils::initFileSystem(false);
+    }
+
+    if (!FileUtils::SDReady) {
+        ESP_LOGW("NET", "cacheWifiFromSd: SD indisponivel, sem credenciais do arquivo");
+        return;
+    }
+
+    FILE *rc = fopen("/sd/wificonfig.rc", "r");
+    if (!rc) {
+        ESP_LOGW("NET", "wificonfig.rc nao encontrado no SD");
+        return;
+    }
+    char line[128];
+    if (fgets(line, sizeof(line), rc)) {
+        size_t l = strlen(line);
+        while (l > 0 && (line[l-1] == '\n' || line[l-1] == '\r')) line[--l] = 0;
+        s_cached_ssid = sanitizeWifiText(string(line), 32);
+    }
+    if (fgets(line, sizeof(line), rc)) {
+        size_t l = strlen(line);
+        while (l > 0 && (line[l-1] == '\n' || line[l-1] == '\r')) line[--l] = 0;
+        s_cached_pass = sanitizeWifiText(string(line), 64);
+    }
+    fclose(rc);
+    s_wifi_cache_loaded = true;
+    ESP_LOGI("NET", "WiFi cacheado do SD: ssid='%s'", s_cached_ssid.c_str());
+}
+
 NetworkMenu::NetConfig NetworkMenu::loadConfig() {
     NetConfig cfg;
     nvs_handle_t h;
-    if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK) return cfg;
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+        cfg.wifi_ssid = sanitizeWifiText(nvsGetStr(h, NVS_WIFI_SSID, ""), 32);
+        cfg.wifi_pass = sanitizeWifiText(nvsGetStr(h, NVS_WIFI_PASS, ""), 64);
+        cfg.proxy_url = nvsGetStr(h, NVS_PROXY_URL, "http://alternativebits.com/wos.php");
+        nvs_close(h);
+    }
 
-    cfg.wifi_ssid = sanitizeWifiText(nvsGetStr(h, NVS_WIFI_SSID, ""), 32);
-    cfg.wifi_pass = sanitizeWifiText(nvsGetStr(h, NVS_WIFI_PASS, ""), 64);
+    // Se temos cache do SD, ele tem prioridade sobre NVS
+    if (s_wifi_cache_loaded && !s_cached_ssid.empty()) {
+        cfg.wifi_ssid = s_cached_ssid;
+        cfg.wifi_pass = s_cached_pass;
+    }
 
-
-    cfg.proxy_url = nvsGetStr(h, NVS_PROXY_URL, "http://alternativebits.com/wos.php");
-
-    nvs_close(h);
     return cfg;
 }
 
@@ -565,43 +611,7 @@ bool NetworkMenu::ensureWifiReady(const string &ssid, const string &pass) {
 }
 
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Menu: Configurar WiFi
-// ═════════════════════════════════════════════════════════════════════════════
-
-void NetworkMenu::wifiConfig() {
-    NetConfig cfg = loadConfig();
-
-    OSD::saveBackbufferData(0, 0, OSD::scrW, OSD::scrH, true);
-
-    string new_ssid = OSD::input(3, 3,
-        NET_LBL_SSID[Config::lang], cfg.wifi_ssid,
-        6, 32, zxColor(7,1), zxColor(1,0), false);
-    if (new_ssid.empty()) {
-        OSD::restoreBackbufferData(true);
-        return; // ESC
-    }
-    cfg.wifi_ssid = sanitizeWifiText(new_ssid, 32);
-    if (cfg.wifi_ssid.empty()) {
-        OSD::restoreBackbufferData(true);
-        return;
-    }
-
-    string new_pass = OSD::input(3, 4,
-        NET_LBL_PASS[Config::lang], cfg.wifi_pass,
-        6, 64, zxColor(7,1), zxColor(1,0), false);
-    cfg.wifi_pass = sanitizeWifiText(new_pass, 64); // pode ser vazia (rede aberta)
-
-    OSD::restoreBackbufferData(true);
-
-    saveConfig(cfg);
-    OSD::osdCenteredMsg(NET_MSG_WIFI_SAVED[Config::lang], LEVEL_OK, 1000);
-
-    if (wifiConnect(cfg.wifi_ssid, cfg.wifi_pass))
-        OSD::osdCenteredMsg(NET_MSG_WIFI_OK[Config::lang],   LEVEL_OK,    1500);
-    else
-        OSD::osdCenteredMsg(NET_MSG_WIFI_FAIL[Config::lang], LEVEL_ERROR, 2000);
-}
+// wifiConfig() removida — credenciais lidas de /sd/wificonfig.rc automaticamente
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Menu: Configurar Proxy (URL completa do wos.php)

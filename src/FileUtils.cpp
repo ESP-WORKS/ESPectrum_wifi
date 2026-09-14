@@ -107,16 +107,21 @@ size_t FileUtils::fileSize(const char * mFile) {
 
 void FileUtils::initFileSystem(bool force_wifi_pause) {
 
-    // // Try to mount SD card on LILYGO TTGO VGA32 Board or ESPectrum Board
-    // if (!SDReady) SDReady = mountSDCard(PIN_NUM_MISO_LILYGO_ESPECTRUM,PIN_NUM_MOSI_LILYGO_ESPECTRUM,PIN_NUM_CLK_LILYGO_ESPECTRUM,PIN_NUM_CS_LILYGO_ESPECTRUM);
-
-    // // Try to mount SD card on Olimex ESP32-SBC-FABGL Board
-    // if ((!ZXKeyb::Exists) && (!SDReady)) SDReady = mountSDCard(PIN_NUM_MISO_SBCFABGL,PIN_NUM_MOSI_SBCFABGL,PIN_NUM_CLK_SBCFABGL,PIN_NUM_CS_SBCFABGL);
-
+    // Tentativa 1: LilyGO TTGO VGA32 / ESPectrum (MISO=2)
     if (!SDReady) SDReady = mountSDCard(
-        Config::Board == BOARD_OLIMEX ? PIN_NUM_MISO_SBCFABGL : PIN_NUM_MISO_LILYGO_ESPECTRUM,
+        PIN_NUM_MISO_LILYGO_ESPECTRUM,
         PIN_NUM_MOSI_LILYGO_ESPECTRUM, PIN_NUM_CLK_LILYGO_ESPECTRUM, PIN_NUM_CS_LILYGO_ESPECTRUM,
         force_wifi_pause);
+
+    // Tentativa 2: Fallback para ROBGO / Olimex SBC-FABGL (MISO=35)
+    if (!SDReady) {
+        printf("SD: falhou com MISO=%d, tentando fallback MISO=%d (ROBGO/Olimex)\n",
+            PIN_NUM_MISO_LILYGO_ESPECTRUM, PIN_NUM_MISO_SBCFABGL);
+        SDReady = mountSDCard(
+            PIN_NUM_MISO_SBCFABGL,
+            PIN_NUM_MOSI_SBCFABGL, PIN_NUM_CLK_SBCFABGL, PIN_NUM_CS_SBCFABGL,
+            force_wifi_pause);
+    }
 
 }
 

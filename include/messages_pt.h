@@ -184,7 +184,6 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 
 #define MENU_NET_PT \
     "Acesso Rede\n"\
-    "Config. WiFi\t>\n"\
     "Config. Proxy\t>\n"\
     "Buscar WoS\t>\n"
 

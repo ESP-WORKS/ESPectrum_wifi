@@ -15,7 +15,9 @@ using namespace std;
 class NetworkMenu {
 public:
     // Chamados pelo dispatcher em OSDMain.cpp (opt == 7 do menu principal)
-    static void wifiConfig();
+    // wifiConfig() removida — credenciais lidas de /sd/wificonfig.rc automaticamente
+    // Deve ser chamado ANTES de prepareForNetwork() enquanto SD ainda montado
+    static void cacheWifiFromSd();
     static void proxyConfig();
 
     static void wosSearch();
