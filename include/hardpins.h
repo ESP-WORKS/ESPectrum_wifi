@@ -42,8 +42,10 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 // PS/2 (fabGL library) GPIOs
 // Allowed GPIOs: GPIO_NUM_0, GPIO_NUM_2, GPIO_NUM_4, GPIO_NUM_12, GPIO_NUM_13, GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_25, GPIO_NUM_26, GPIO_NUM_27, GPIO_NUM_32, GPIO_NUM_33
 // Not allowed from GPIO_NUM_34 to GPIO_NUM_39
-// #define PIN_CLK_PS2PORT1 GPIO_NUM_33
-// #define PIN_DAT_PS2PORT1 GPIO_NUM_32
+// Pinos padrao usados pelo preset PS2Preset::KeyboardPort0 do fabGL.
+// Usados como referencia para saber se o bootl.rc pediu pinos customizados.
+#define PIN_CLK_PS2PORT1 GPIO_NUM_33
+#define PIN_DAT_PS2PORT1 GPIO_NUM_32
 // #define PIN_CLK_PS2PORT2 GPIO_NUM_26
 // #define PIN_DAT_PS2PORT2 GPIO_NUM_27
 

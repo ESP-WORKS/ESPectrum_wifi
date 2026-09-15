@@ -78,6 +78,79 @@ bool ESPectrum::ps2kbd2 = false;
 bool ESPectrum::ps2mouse = false;
 
 //=======================================================================================
+// BOOTL.RC - PS/2 KEYBOARD PIN OVERRIDE
+//=======================================================================================
+// Pinos efetivos do teclado PS/2 apos ler (ou nao) o bootl.rc.
+// Comecam nos defaults do preset KeyboardPort0 do fabGL.
+static int s_ps2_kbd_clk = PIN_CLK_PS2PORT1;
+static int s_ps2_kbd_dat = PIN_DAT_PS2PORT1;
+
+// Le o bootl.rc do SD (gerado pelo bootloader) para obter os pinos do
+// teclado PS/2. Formato: "kbddat=32\nkbdclk=33\nmagicb=36\n"
+// (a linha magicb e' ignorada aqui, nao mexe no magic button).
+// Se o SD nao estiver disponivel ou o arquivo nao existir, kbd_clk/kbd_dat
+// saem como -1 e o chamador aplica os defaults.
+static void readBootlRcKbdPins(int &kbd_clk, int &kbd_dat) {
+
+    kbd_clk = -1;
+    kbd_dat = -1;
+
+    if (!FileUtils::SDReady) FileUtils::initFileSystem();
+
+    if (!FileUtils::SDReady) {
+        printf("[bootl.rc] SD indisponivel, usando defaults (CLK=%d DAT=%d)\n",
+            PIN_CLK_PS2PORT1, PIN_DAT_PS2PORT1);
+        return;
+    }
+
+    FILE *f = fopen(MOUNT_POINT_SD "/bootl.rc", "r");
+    if (!f) {
+        printf("[bootl.rc] nao encontrado, usando defaults (CLK=%d DAT=%d)\n",
+            PIN_CLK_PS2PORT1, PIN_DAT_PS2PORT1);
+        return;
+    }
+
+    char line[32];
+    int val;
+    while (fgets(line, sizeof(line), f)) {
+        if (sscanf(line, "kbdclk=%d", &val) == 1) kbd_clk = val;
+        if (sscanf(line, "kbddat=%d", &val) == 1) kbd_dat = val;
+    }
+    fclose(f);
+
+    printf("[bootl.rc] CLK=%d DAT=%d\n", kbd_clk, kbd_dat);
+
+}
+
+// Inicializa o teclado PS/2 (porta unica) usando os pinos efetivos
+// (default do preset ou customizados vindos do bootl.rc).
+static void beginPS2SingleKeyboard() {
+
+    int kbd_clk, kbd_dat;
+    readBootlRcKbdPins(kbd_clk, kbd_dat);
+
+    s_ps2_kbd_clk = (kbd_clk < 0) ? PIN_CLK_PS2PORT1 : kbd_clk;
+    s_ps2_kbd_dat = (kbd_dat < 0) ? PIN_DAT_PS2PORT1 : kbd_dat;
+
+    if (s_ps2_kbd_clk == PIN_CLK_PS2PORT1 && s_ps2_kbd_dat == PIN_DAT_PS2PORT1) {
+        // Preset padrao -- FabGL configura os pinos automaticamente.
+        ESPectrum::PS2Controller.begin(PS2Preset::KeyboardPort0, KbdMode::CreateVirtualKeysQueue);
+    } else {
+        // Pinos personalizados lidos do bootl.rc.
+        ESPectrum::PS2Controller.begin((gpio_num_t)s_ps2_kbd_clk, (gpio_num_t)s_ps2_kbd_dat);
+
+        ESPectrum::PS2Controller.setKeyboard(new fabgl::Keyboard);
+
+        ESPectrum::PS2Controller.keyboard()->begin(
+            (gpio_num_t)s_ps2_kbd_clk, (gpio_num_t)s_ps2_kbd_dat,
+            true,
+            true
+        );
+    }
+
+}
+
+//=======================================================================================
 // AUDIO
 //=======================================================================================
 uint8_t ESPectrum::audioBuffer[ESP_AUDIO_SAMPLES_PENTAGON] = { 0 };
@@ -620,7 +693,7 @@ void ESPectrum::setup() {
 
         switch (Config::ps2_dev2) {
         case 0:
-            PS2Controller.begin(PS2Preset::KeyboardPort0, KbdMode::CreateVirtualKeysQueue);
+            beginPS2SingleKeyboard();
             ps2kbd = true;
             break;
         case 1:
@@ -641,7 +714,7 @@ void ESPectrum::setup() {
             break;
         case 3:
         case 4:
-            PS2Controller.begin(PS2Preset::KeyboardPort0, KbdMode::CreateVirtualKeysQueue);
+            beginPS2SingleKeyboard();
             ps2kbd = true;
             Config::ps2_dev2 -= 2;
             Config::save("PS2Dev2");
