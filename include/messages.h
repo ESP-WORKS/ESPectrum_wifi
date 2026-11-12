@@ -222,6 +222,7 @@ static const char *BT_MSG_UNPAIR_ONE[NLANGS]   = { BT_MSG_UNPAIR_ONE_EN,   BT_MS
 static const char *BT_MSG_UNPAIR_ALL[NLANGS]   = { BT_MSG_UNPAIR_ALL_EN,   BT_MSG_UNPAIR_ALL_ES,   BT_MSG_UNPAIR_ALL_PT   };
 static const char *BT_MSG_UNPAIRED[NLANGS]     = { BT_MSG_UNPAIRED_EN,     BT_MSG_UNPAIRED_ES,     BT_MSG_UNPAIRED_PT     };
 static const char *BT_MSG_WAITING[NLANGS]      = { BT_MSG_WAITING_EN,      BT_MSG_WAITING_ES,      BT_MSG_WAITING_PT      };
+static const char *BT_MSG_CONNECTING[NLANGS]   = { BT_MSG_CONNECTING_EN,   BT_MSG_CONNECTING_ES,   BT_MSG_CONNECTING_PT   };
 static const char *BT_MSG_NOT_FOUND[NLANGS]    = { BT_MSG_NOT_FOUND_EN,    BT_MSG_NOT_FOUND_ES,    BT_MSG_NOT_FOUND_PT    };
 static const char *BT_MSG_FAIL[NLANGS]         = { BT_MSG_FAIL_EN,         BT_MSG_FAIL_ES,         BT_MSG_FAIL_PT         };
 

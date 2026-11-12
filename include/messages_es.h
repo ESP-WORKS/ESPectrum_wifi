@@ -223,6 +223,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #define BT_MSG_UNPAIR_ALL_ES    "Borrar todos los emparejamientos?"
 #define BT_MSG_UNPAIRED_ES      "Gamepad desemparejado"
 #define BT_MSG_WAITING_ES       "Esperando gamepad..."
+#define BT_MSG_CONNECTING_ES    "Conectando..."
 #define BT_MSG_NOT_FOUND_ES     "Gamepad no encontrado"
 #define BT_MSG_FAIL_ES          "Fallo al iniciar Bluetooth"
 

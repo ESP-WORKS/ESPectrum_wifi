@@ -344,6 +344,24 @@ static string discLabel(const BtDisc &d) {
     return n;
 }
 
+static bool waitForGamepad(int timeout_ms) {
+    int64_t until = esp_timer_get_time() + (int64_t)timeout_ms * 1000LL;
+    while (esp_timer_get_time() < until && !s_connected) {
+        if (ZXKeyb::Exists)
+            ZXKeyb::ZXKbdRead();
+        ESPectrum::readKbdJoy();
+        fabgl::VirtualKeyItem key;
+        if (ESPectrum::PS2Controller.keyboard()->virtualKeyAvailable()) {
+            if (ESPectrum::readKbd(&key) && key.down &&
+                (key.vk == fabgl::VK_ESCAPE || key.vk == fabgl::VK_F1 ||
+                 key.vk == fabgl::VK_JOY1A || key.vk == fabgl::VK_JOY2A))
+                return false;
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    return s_connected;
+}
+
 void BluetoothMenu::pairDevices() {
     if (!s_bt_ready) {
         OSD::osdCenteredMsg(BT_MSG_FAIL[Config::lang], LEVEL_ERROR, 1500);
@@ -390,8 +408,8 @@ void BluetoothMenu::pairDevices() {
             return;
         }
 
-        if (connected) {
-            string msg = string(BT_MSG_CONNECTED[Config::lang]) + " " + cname;
+        if (s_connected || connected) {
+            string msg = string(BT_MSG_CONNECTED[Config::lang]) + " " + (s_connected ? connectedName() : cname);
             OSD::osdCenteredMsg(msg, LEVEL_OK, 1500);
             s_pairing = false;
             s_accept_new = false;
@@ -399,7 +417,24 @@ void BluetoothMenu::pairDevices() {
             return;
         }
 
-        // opt==1 refresh; any other is a listed device — keep scanning
+        // opt==1 is Refresh (and Searching placeholder). Keep listing.
+        if (opt == 1 || nshown == 0) {
+            OSD::menu_curopt = 1;
+            OSD::menu_saverect = false;
+            continue;
+        }
+
+        // User picked a discovered pad. Auto-connect is already in progress;
+        // wait instead of redrawing the OSD (PSRAM) over the BT controller.
+        OSD::osdCenteredMsg(BT_MSG_CONNECTING[Config::lang], LEVEL_INFO, 400);
+        if (waitForGamepad(20000)) {
+            OSD::osdCenteredMsg(string(BT_MSG_CONNECTED[Config::lang]) + " " + connectedName(), LEVEL_OK, 1500);
+            s_pairing = false;
+            s_accept_new = false;
+            uni_bt_enable_new_connections_safe(false);
+            return;
+        }
+
         OSD::menu_curopt = 1;
         OSD::menu_saverect = false;
     }
@@ -450,22 +485,7 @@ void BluetoothMenu::connectPaired() {
 
     OSD::osdCenteredMsg(BT_MSG_WAITING[Config::lang], LEVEL_INFO, 800);
 
-    int64_t until = esp_timer_get_time() + 20000000LL;
-    while (esp_timer_get_time() < until && !s_connected) {
-        if (ZXKeyb::Exists)
-            ZXKeyb::ZXKbdRead();
-        ESPectrum::readKbdJoy();
-        fabgl::VirtualKeyItem key;
-        if (ESPectrum::PS2Controller.keyboard()->virtualKeyAvailable()) {
-            if (ESPectrum::readKbd(&key) && key.down &&
-                (key.vk == fabgl::VK_ESCAPE || key.vk == fabgl::VK_F1 ||
-                 key.vk == fabgl::VK_JOY1A || key.vk == fabgl::VK_JOY2A))
-                break;
-        }
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-
-    if (s_connected) {
+    if (waitForGamepad(20000)) {
         OSD::osdCenteredMsg(string(BT_MSG_CONNECTED[Config::lang]) + " " + connectedName(), LEVEL_OK, 1500);
         s_accept_new = false;
         uni_bt_enable_new_connections_safe(false);
