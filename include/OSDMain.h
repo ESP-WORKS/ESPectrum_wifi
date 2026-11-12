@@ -136,6 +136,7 @@ public:
     static void menuScrollBar(unsigned short br);
     static void click();
     static uint8_t menu_level;
+    static bool inMenu;
     static bool menu_saverect;
     static unsigned short menu_curopt;
     static unsigned int SaveRectpos;

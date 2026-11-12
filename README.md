@@ -41,6 +41,22 @@ http://alternativebits.com/wos.php
 
 3. Busque o arquivo desejado e aproveite!
 
+## Gamepad Bluetooth (Bluepad32)
+
+Novo item no menu **F1**:
+
+```
+Bluetooth
+```
+
+- **Parear**: lista os gamepads em modo de pareamento e conecta automaticamente.
+- **Desparear**: esquece o gamepad atual (ou todos os pareamentos).
+- **Conectar**: tenta ligar um gamepad já pareado.
+- Gamepads pareados reconectam sozinhos ao ligar o ESP32 (botão PS / Xbox / Home).
+- O analog/D-pad vira joystick Kempston. O botão System (PS/Xbox) abre o menu F1.
+
+Baseado em https://github.com/ricardoquesada/bluepad32
+
 > [!CAUTION]
 > **USE POR SUA CONTA E RISCO!**
 
@@ -86,6 +102,22 @@ http://alternativebits.com/wos.php
 
 3. Search for the desired file and enjoy!
 
+## Bluetooth gamepad (Bluepad32)
+
+New item in the **F1** menu:
+
+```
+Bluetooth
+```
+
+- **Pair**: lists gamepads in pairing mode and connects automatically.
+- **Unpair**: forgets the current gamepad (or all pairings).
+- **Connect**: reconnects an already paired gamepad.
+- Paired gamepads reconnect by themselves when the ESP32 boots (PS / Xbox / Home button).
+- Analog/D-pad maps to Kempston. The System button (PS/Xbox) opens the F1 menu.
+
+Based on https://github.com/ricardoquesada/bluepad32
+
 > [!CAUTION]
 > **USE AT YOUR OWN RISK!**
 
@@ -130,6 +162,22 @@ http://alternativebits.com/wos.php
 ```
 
 3. Busque el archivo que desee y disfrútelo.
+
+## Gamepad Bluetooth (Bluepad32)
+
+Nuevo elemento en el menú **F1**:
+
+```
+Bluetooth
+```
+
+- **Emparejar**: lista los gamepads en modo de emparejamiento y conecta automáticamente.
+- **Desemparejar**: olvida el gamepad actual (o todos los emparejamientos).
+- **Conectar**: reconecta un gamepad ya emparejado.
+- Los gamepads emparejados se reconectan solos al encender el ESP32 (botón PS / Xbox / Home).
+- Analog/D-pad se mapea a Kempston. El botón System (PS/Xbox) abre el menú F1.
+
+Basado en https://github.com/ricardoquesada/bluepad32
 
 > [!CAUTION]
 > **¡ÚSELO BAJO SU PROPIA RESPONSABILIDAD Y RIESGO!**

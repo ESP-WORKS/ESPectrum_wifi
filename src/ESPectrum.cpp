@@ -40,6 +40,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #include "ESPConfig.h"
 #include "FileUtils.h"
 #include "OSDMain.h"
+#include "BluetoothMenu.h"
 #include "Ports.h"
 #include "MemESP.h"
 #include "cpuESP.h"
@@ -1141,6 +1142,8 @@ void ESPectrum::setup() {
 
     }
 
+    BluetoothMenu::setup();
+
     if (Config::slog_on) showMemInfo("Setup finished.");
 
     // printf("Waiting boot keys\n");
@@ -2235,6 +2238,8 @@ for(;;) {
     AudioIn::PrepareFrame();
 
     processKeyboard();
+    OSD::inMenu = false;
+    BluetoothMenu::applyToJoystick();
 
     // Update stats every 50 frames
     if (VIDEO::OSD && VIDEO::framecnt >= 50) {
