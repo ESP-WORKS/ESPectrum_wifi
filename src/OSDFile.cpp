@@ -68,7 +68,7 @@ uint8_t OSD::fdCursorFlash;
 bool OSD::fdSearchRefresh;
 
 void OSD::restoreBackbufferData(bool force) {
-    if ( !SaveRectpos ) return;
+    if (!VIDEO::SaveRect || !SaveRectpos) return;
     if (menu_saverect || force) {
 //    printf("--- OSD::restoreBackbufferData %d\n", SaveRectpos);
 
@@ -111,6 +111,9 @@ void OSD::restoreBackbufferData(bool force) {
 }
 
 void OSD::saveBackbufferData(uint16_t x, uint16_t y, uint16_t w, uint16_t h, bool force) {
+
+    if (!VIDEO::SaveRect)
+        return;
 
     if ( force || menu_saverect ) {
 //        printf("OSD::saveBackbufferData x=%hd y=%hd w=%hd h=%hd pos=%d\n", x, y, w, h, SaveRectpos);

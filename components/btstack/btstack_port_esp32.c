@@ -238,7 +238,8 @@ static int transport_open(void){
         esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
         ret = esp_bt_controller_init(&bt_cfg);
         if (ret) {
-            log_error("transport: esp_bt_controller_init failed");
+            log_error("transport: esp_bt_controller_init failed: %s", esp_err_to_name(ret));
+            printf("esp_bt_controller_init failed: %s (%d)\n", esp_err_to_name(ret), ret);
             return -1;
         }
 
@@ -256,7 +257,8 @@ static int transport_open(void){
 
     ret = esp_bt_controller_enable(bt_mode);
     if (ret) {
-        log_error("transport: esp_bt_controller_enable failed");
+        log_error("transport: esp_bt_controller_enable failed: %s", esp_err_to_name(ret));
+        printf("esp_bt_controller_enable failed: %s (%d)\n", esp_err_to_name(ret), ret);
         return -1;
     }
 

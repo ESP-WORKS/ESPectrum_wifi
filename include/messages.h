@@ -223,6 +223,7 @@ static const char *BT_MSG_UNPAIR_ALL[NLANGS]   = { BT_MSG_UNPAIR_ALL_EN,   BT_MS
 static const char *BT_MSG_UNPAIRED[NLANGS]     = { BT_MSG_UNPAIRED_EN,     BT_MSG_UNPAIRED_ES,     BT_MSG_UNPAIRED_PT     };
 static const char *BT_MSG_WAITING[NLANGS]      = { BT_MSG_WAITING_EN,      BT_MSG_WAITING_ES,      BT_MSG_WAITING_PT      };
 static const char *BT_MSG_NOT_FOUND[NLANGS]    = { BT_MSG_NOT_FOUND_EN,    BT_MSG_NOT_FOUND_ES,    BT_MSG_NOT_FOUND_PT    };
+static const char *BT_MSG_FAIL[NLANGS]         = { BT_MSG_FAIL_EN,         BT_MSG_FAIL_ES,         BT_MSG_FAIL_PT         };
 
 static const char *NET_MSG_WIFI_CONNECTING[NLANGS] = { NET_MSG_WIFI_CONNECTING_EN, NET_MSG_WIFI_CONNECTING_ES, NET_MSG_WIFI_CONNECTING_PT };
 static const char *NET_MSG_WIFI_OK[NLANGS]         = { NET_MSG_WIFI_OK_EN,         NET_MSG_WIFI_OK_ES,         NET_MSG_WIFI_OK_PT         };

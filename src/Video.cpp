@@ -292,7 +292,11 @@ void VIDEO::Init() {
 
     precalcborder32();  // Precalc border 32 bits values
 
-    SaveRect = (uint32_t *) heap_caps_malloc(0x9000, MALLOC_CAP_INTERNAL | MALLOC_CAP_32BIT);
+    SaveRect = (uint32_t *) heap_caps_malloc(0x9000, MALLOC_CAP_SPIRAM | MALLOC_CAP_32BIT);
+    if (!SaveRect)
+        SaveRect = (uint32_t *) heap_caps_malloc(0x9000, MALLOC_CAP_INTERNAL | MALLOC_CAP_32BIT);
+    if (!SaveRect)
+        printf("ERROR! Unable to allocate OSD SaveRect\n");
 
     // Set font & Codepage
     vga.setFont(Font6x8);

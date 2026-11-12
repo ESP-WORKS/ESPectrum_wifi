@@ -346,7 +346,7 @@ static string discLabel(const BtDisc &d) {
 
 void BluetoothMenu::pairDevices() {
     if (!s_bt_ready) {
-        OSD::osdCenteredMsg(BT_MSG_INIT[Config::lang], LEVEL_WARN, 1500);
+        OSD::osdCenteredMsg(BT_MSG_FAIL[Config::lang], LEVEL_ERROR, 1500);
         return;
     }
 
@@ -407,7 +407,7 @@ void BluetoothMenu::pairDevices() {
 
 void BluetoothMenu::unpairDevices() {
     if (!s_bt_ready) {
-        OSD::osdCenteredMsg(BT_MSG_INIT[Config::lang], LEVEL_WARN, 1500);
+        OSD::osdCenteredMsg(BT_MSG_FAIL[Config::lang], LEVEL_ERROR, 1500);
         return;
     }
 
@@ -437,7 +437,7 @@ void BluetoothMenu::unpairDevices() {
 
 void BluetoothMenu::connectPaired() {
     if (!s_bt_ready) {
-        OSD::osdCenteredMsg(BT_MSG_INIT[Config::lang], LEVEL_WARN, 1500);
+        OSD::osdCenteredMsg(BT_MSG_FAIL[Config::lang], LEVEL_ERROR, 1500);
         return;
     }
     if (s_connected) {
@@ -478,7 +478,7 @@ void BluetoothMenu::connectPaired() {
 void BluetoothMenu::showStatus() {
     string msg;
     if (!s_bt_ready)
-        msg = BT_MSG_INIT[Config::lang];
+        msg = BT_MSG_FAIL[Config::lang];
     else if (s_connected)
         msg = string(BT_MSG_CONNECTED[Config::lang]) + " " + connectedName();
     else
@@ -487,6 +487,9 @@ void BluetoothMenu::showStatus() {
 }
 
 void BluetoothMenu::doMenu() {
+    if (!s_bt_ready) {
+        OSD::osdCenteredMsg(BT_MSG_FAIL[Config::lang], LEVEL_ERROR, 1800);
+    }
     OSD::menu_saverect = true;
     OSD::menu_curopt = 1;
     while (1) {
