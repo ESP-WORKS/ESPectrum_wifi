@@ -40,6 +40,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #include "ESPConfig.h"
 #include "FileUtils.h"
 #include "OSDMain.h"
+#include "BluetoothMenu.h"
 #include "Ports.h"
 #include "MemESP.h"
 #include "cpuESP.h"
@@ -327,7 +328,7 @@ bool ESPectrum::magicBtnFromBootlRc = false;
 //     return (unsigned long) (esp_timer_get_time() / 1000ULL);
 // }
 
-IRAM_ATTR void delayMicroseconds(int64_t us)
+void delayMicroseconds(int64_t us)
 {
     int64_t m = esp_timer_get_time();
     if(us){
@@ -907,6 +908,10 @@ void ESPectrum::setup() {
 
     if (Config::slog_on) showMemInfo("RAM Initialized");
 
+    // BT controller reads PHY cal from flash; that disables the cache.
+    // Start it before VGA/I2S ISRs are running or core 1 panics.
+    BluetoothMenu::setup();
+
     //=======================================================================================
     // VIDEO
     //=======================================================================================
@@ -1344,7 +1349,7 @@ void ESPectrum::reset() {
 //=======================================================================================
 // KEYBOARD / KEMPSTON
 //=======================================================================================
-IRAM_ATTR bool ESPectrum::readKbd(fabgl::VirtualKeyItem *Nextkey) {
+bool ESPectrum::readKbd(fabgl::VirtualKeyItem *Nextkey) {
 
     bool r = PS2Controller.keyboard()->getNextVirtualKey(Nextkey);
     // Global keys
@@ -1370,7 +1375,7 @@ IRAM_ATTR bool ESPectrum::readKbd(fabgl::VirtualKeyItem *Nextkey) {
 //
 // Read second ps/2 port and inject on first queue
 //
-IRAM_ATTR void ESPectrum::readKbdJoy() {
+void ESPectrum::readKbdJoy() {
 
     if (ps2kbd2) {
 
@@ -1418,7 +1423,7 @@ bool ESPectrum::mouseButtonR = 0;
 // static uint8_t PS2cols[8] = { 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf };
 static uint8_t PS2cols[8] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-IRAM_ATTR void ESPectrum::processKeyboard() {
+void ESPectrum::processKeyboard() {
 
     bool r = false;
 
@@ -2208,7 +2213,7 @@ IRAM_ATTR void ESPectrum::COVOXGetSample() {
 // MAIN LOOP
 //=======================================================================================
 
-IRAM_ATTR void ESPectrum::loop() {
+void ESPectrum::loop() {
 
 static uint8_t OSDbgcolor = 1;
 
@@ -2235,6 +2240,8 @@ for(;;) {
     AudioIn::PrepareFrame();
 
     processKeyboard();
+    OSD::inMenu = false;
+    BluetoothMenu::applyToJoystick();
 
     // Update stats every 50 frames
     if (VIDEO::OSD && VIDEO::framecnt >= 50) {

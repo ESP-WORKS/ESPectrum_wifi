@@ -447,23 +447,23 @@ IRAM_ATTR void AySound::gen_sound(int sound_bufsize, int bufpos)
 
 }
 
-IRAM_ATTR void AySound::updToneA() {
+void AySound::updToneA() {
     ayregs.tone_a = regs[0] + ((regs[1] & 0x0f) << 8);
 }
 
-IRAM_ATTR void AySound::updToneB() {
+void AySound::updToneB() {
     ayregs.tone_b = regs[2] + ((regs[3] & 0x0f) << 8);
 }
 
-IRAM_ATTR void AySound::updToneC() {
+void AySound::updToneC() {
     ayregs.tone_c = regs[4] + ((regs[5] & 0x0f) << 8);
 }
 
-IRAM_ATTR void AySound::updNoisePitch() {
+void AySound::updNoisePitch() {
     ayregs.noise = regs[6] & 0x1f;
 }
 
-IRAM_ATTR void AySound::updMixer() {
+void AySound::updMixer() {
     ayregs.R7_tone_a = !(regs[7] & 0x01);
     ayregs.R7_tone_b = !(regs[7] & 0x02);
     ayregs.R7_tone_c = !(regs[7] & 0x04);
@@ -473,26 +473,26 @@ IRAM_ATTR void AySound::updMixer() {
     ayregs.R7_noise_c = !(regs[7] & 0x20);
 }
 
-IRAM_ATTR void AySound::updVolA() {
+void AySound::updVolA() {
     ayregs.vol_a = regs[8] & 0x0f;
     ayregs.env_a = regs[8] & 0x10;
 }
 
-IRAM_ATTR void AySound::updVolB() {
+void AySound::updVolB() {
     ayregs.vol_b = regs[9] & 0x0f;
     ayregs.env_b = regs[9] & 0x10;
 }
 
-IRAM_ATTR void AySound::updVolC() {
+void AySound::updVolC() {
     ayregs.vol_c = regs[10] & 0x0f;
     ayregs.env_c = regs[10] & 0x10;
 }
 
-IRAM_ATTR void AySound::updEnvFreq() {
+void AySound::updEnvFreq() {
     ayregs.env_freq = regs[11] + (regs[12] << 8);
 }
 
-IRAM_ATTR void AySound::updEnvType() {
+void AySound::updEnvType() {
 
     // This shouldn't happen on AY
     // if (regs[13] == 0xff) { // R13 = 255 means continue current envelop
@@ -505,15 +505,15 @@ IRAM_ATTR void AySound::updEnvType() {
 
 }
 
-IRAM_ATTR void AySound::updIOPortA() {
+void AySound::updIOPortA() {
     ayregs.IOPortA = regs[14] & 0xff;
 }
 
-IRAM_ATTR void AySound::updIOPortB() {
+void AySound::updIOPortB() {
     ayregs.IOPortB = regs[15] & 0xff;
 }
 
-IRAM_ATTR uint8_t AySound::getRegisterData()
+uint8_t AySound::getRegisterData()
 {
 
     if ((selectedRegister >= 14) && ((regs[7] >> (selectedRegister - 8)) & 1) == 0) {
@@ -544,7 +544,7 @@ IRAM_ATTR uint8_t AySound::getRegisterData()
 
 }
 
-IRAM_ATTR void AySound::setRegisterData(uint8_t data) {
+void AySound::setRegisterData(uint8_t data) {
     regs[selectedRegister] = data;
     updateReg[selectedRegister]();
 }

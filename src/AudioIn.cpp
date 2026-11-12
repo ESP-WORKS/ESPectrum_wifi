@@ -48,9 +48,9 @@ uint64_t AudioIn::Basepos = 0;
 volatile uint32_t* AudioIn::gpio_in;
 volatile uint32_t AudioIn::gpio_mask;
 
-extern "C" void IRAM_ATTR AudioInGetAudio();
+extern "C" void AudioInGetAudio();
 
-void IRAM_ATTR AudioInGetAudio() {
+void AudioInGetAudio() {
     if (AudioIn::Status == AUDIOIN_PLAY) {
         AudioIn::Buffer[AudioIn::sample_index++] = (*AudioIn::gpio_in & AudioIn::gpio_mask) != 0;
         // AudioIn::Buffer[AudioIn::sample_index++] = (*AudioIn::gpio_in & AudioIn::gpio_mask) == 0; // Inverted polarity
@@ -112,6 +112,6 @@ void AudioIn::PrepareFrame() {
     Basepos += CPU::statesInFrame;
 }
 
-uint8_t IRAM_ATTR AudioIn::GetLevel() {
+uint8_t AudioIn::GetLevel() {
     return Buffer[(int)((Basepos + CPU::tstates) * Factor) % Bufsize];
 }

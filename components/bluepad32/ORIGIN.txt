@@ -1,0 +1,6 @@
+Vendored from Bluepad32 v4.1.0 (ESP-IDF 4.4 compatible).
+https://github.com/ricardoquesada/bluepad32/tree/4.1.0
+
+BTstack is the patched ESP32 port used by that release.
+Unused Unijoysticle/NINA/MightyMiggy platforms and BTstack audio/mesh
+were left out of the ESPectrum build.

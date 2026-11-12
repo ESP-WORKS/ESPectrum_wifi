@@ -51,7 +51,7 @@ static const uint16_t sectdatapos[16]= { 162,554,946,1338,1730,2122,2514,2906,32
 #define indexMark 0xC2
 #define sectorMark 0xA1
 
-IRAM_ATTR static void _end(rvmWD1793 *wd) {
+static void _end(rvmWD1793 *wd) {
   wd->status &= ~kRVMWD177XStatusBusy;
   wd->state = kRVMWD177XNone;
   wd->stepState = kRVMWD177XStepIdle;
@@ -61,7 +61,7 @@ IRAM_ATTR static void _end(rvmWD1793 *wd) {
   wd->control |= kRVMWD177XINTRQ; //TODO: ADD A INTERRUPT HANDLER
 }
 
-IRAM_ATTR void _do(rvmWD1793 *wd) {
+void _do(rvmWD1793 *wd) {
 
   switch(wd->state) {
 
@@ -974,7 +974,7 @@ IRAM_ATTR void _do(rvmWD1793 *wd) {
   }
 }
 
-IRAM_ATTR void rvmWD1793Step(rvmWD1793 *wd, uint32_t steps) {
+void rvmWD1793Step(rvmWD1793 *wd, uint32_t steps) {
 
   uint8_t dd = 0x0;
   uint8_t s=0x0;
@@ -1127,7 +1127,7 @@ IRAM_ATTR void rvmWD1793Step(rvmWD1793 *wd, uint32_t steps) {
 
 }
 
-IRAM_ATTR void rvmwdDiskStep_read(rvmWD1793 *wd) {
+void rvmwdDiskStep_read(rvmWD1793 *wd) {
 
   rvmwdDisk *disk = wd->disk[wd->diskS];
 
@@ -1204,7 +1204,7 @@ IRAM_ATTR void rvmwdDiskStep_read(rvmWD1793 *wd) {
 
 }
 
-IRAM_ATTR void rvmwdDiskStep_write(rvmWD1793 *wd, uint8_t wbyte) {
+void rvmwdDiskStep_write(rvmWD1793 *wd, uint8_t wbyte) {
 
   rvmwdDisk *disk = wd->disk[wd->diskS];
 
@@ -1278,7 +1278,7 @@ IRAM_ATTR void rvmwdDiskStep_write(rvmWD1793 *wd, uint8_t wbyte) {
 
 }
 
-IRAM_ATTR void rvmWD1793Write(rvmWD1793 *wd,uint8_t a,uint8_t value) {
+void rvmWD1793Write(rvmWD1793 *wd,uint8_t a,uint8_t value) {
 
   switch(a & 0x3) {
 
@@ -1409,7 +1409,7 @@ IRAM_ATTR void rvmWD1793Write(rvmWD1793 *wd,uint8_t a,uint8_t value) {
   }
 }
 
-IRAM_ATTR uint8_t rvmWD1793Read(rvmWD1793 *wd,uint8_t a) {
+uint8_t rvmWD1793Read(rvmWD1793 *wd,uint8_t a) {
 
   uint8_t r;
 

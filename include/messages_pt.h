@@ -175,6 +175,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
     "Snapshots\t>\n"\
     "Fita K7\t>\n"\
     "Acesso Rede\t>\n"\
+    "Bluetooth\t>\n"\
     "Hardware\t>\n"\
     "Op\x87\x94" "es\t>\n"\
     "Reiniciar\t>\n"\
@@ -186,6 +187,30 @@ To Contact the dev team you can write to zxespectrum@gmail.com
     "Acesso Rede\n"\
     "Config. Proxy\t>\n"\
     "Buscar WoS\t>\n"
+
+#define MENU_BT_PT \
+    "Bluetooth\n"\
+    "Parear\t>\n"\
+    "Desparear\t>\n"\
+    "Conectar\n"\
+    "Estado\n"
+
+#define MENU_BT_PAIR_TITLE_PT "Parear gamepad"
+
+#define BT_MSG_INIT_PT          "Bluetooth a iniciar..."
+#define BT_MSG_PAIR_HINT_PT     "Coloque o pad em parear"
+#define BT_MSG_REFRESH_PT       "Atualizar lista"
+#define BT_MSG_SEARCHING_PT     "Buscando..."
+#define BT_MSG_CONNECTED_PT     "Conectado:"
+#define BT_MSG_DISCONNECTED_PT  "Nenhum gamepad"
+#define BT_MSG_UNPAIR_PT        "Desparear"
+#define BT_MSG_UNPAIR_ONE_PT    "Desparear este gamepad?"
+#define BT_MSG_UNPAIR_ALL_PT    "Apagar todos os pareamentos?"
+#define BT_MSG_UNPAIRED_PT      "Gamepad despareado"
+#define BT_MSG_WAITING_PT       "Aguardando gamepad..."
+#define BT_MSG_CONNECTING_PT    "Conectando..."
+#define BT_MSG_NOT_FOUND_PT     "Gamepad nao encontrado"
+#define BT_MSG_FAIL_PT          "Falha ao iniciar Bluetooth"
 
 #define NET_MSG_WIFI_CONNECTING_PT  "Conectando WiFi..."
 #define NET_MSG_WIFI_OK_PT          "WiFi conectado!"

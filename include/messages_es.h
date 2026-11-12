@@ -189,7 +189,8 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #define MENU_MAIN_ES \
     "Snapshots\t>\n"\
     "Casete\t>\n"\
-    "Red\t>\n"\  
+    "Red\t>\n"\
+    "Bluetooth\t>\n"\
     "Modelo\t>\n"\
     "Opciones\t>\n"\
     "Resetear\t>\n"\
@@ -201,6 +202,30 @@ To Contact the dev team you can write to zxespectrum@gmail.com
     "Red\n"\
     "Config. Proxy\t>\n"\
     "Buscar WoS\t>\n"
+
+#define MENU_BT_ES \
+    "Bluetooth\n"\
+    "Emparejar\t>\n"\
+    "Desemparejar\t>\n"\
+    "Conectar\n"\
+    "Estado\n"
+
+#define MENU_BT_PAIR_TITLE_ES "Emparejar gamepad"
+
+#define BT_MSG_INIT_ES          "Bluetooth iniciando..."
+#define BT_MSG_PAIR_HINT_ES     "Ponga el pad en emparejar"
+#define BT_MSG_REFRESH_ES       "Actualizar lista"
+#define BT_MSG_SEARCHING_ES     "Buscando..."
+#define BT_MSG_CONNECTED_ES     "Conectado:"
+#define BT_MSG_DISCONNECTED_ES  "Ningun gamepad"
+#define BT_MSG_UNPAIR_ES        "Desemparejar"
+#define BT_MSG_UNPAIR_ONE_ES    "Desemparejar este gamepad?"
+#define BT_MSG_UNPAIR_ALL_ES    "Borrar todos los emparejamientos?"
+#define BT_MSG_UNPAIRED_ES      "Gamepad desemparejado"
+#define BT_MSG_WAITING_ES       "Esperando gamepad..."
+#define BT_MSG_CONNECTING_ES    "Conectando..."
+#define BT_MSG_NOT_FOUND_ES     "Gamepad no encontrado"
+#define BT_MSG_FAIL_ES          "Fallo al iniciar Bluetooth"
 
 #define NET_MSG_WIFI_CONNECTING_ES  "Conectando WiFi..."
 #define NET_MSG_WIFI_OK_ES          "WiFi conectado!"

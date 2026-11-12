@@ -777,7 +777,7 @@ void Tape::Stop() {
 
 }
 
-IRAM_ATTR void Tape::Read() {
+void Tape::Read() {
     uint64_t tapeCurrent = CPU::global_tstates + CPU::tstates - tapeStart;
     if (tapeCurrent >= tapeNext) {
         do {

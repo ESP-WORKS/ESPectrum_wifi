@@ -16,3 +16,5 @@ downloaded_fs*.bin
 /releases/**
 dependencies.lock
 build/*
+sdkconfig
+sdkconfig.old

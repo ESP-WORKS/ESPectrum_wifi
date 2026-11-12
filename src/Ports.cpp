@@ -141,7 +141,7 @@ uint8_t Ports::getFloatBusData2A3() {
 
 static uint32_t p_states;
 
-IRAM_ATTR void Ports::FDDStep(bool force) {
+void Ports::FDDStep(bool force) {
 
     CPU::tstates_diff += p_states - CPU::prev_tstates;
 

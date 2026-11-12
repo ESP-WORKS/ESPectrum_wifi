@@ -34,6 +34,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 
 #include "OSDMain.h"
 #include "NetworkMenu.h"
+#include "BluetoothMenu.h"
 #include "FileUtils.h"
 #include "cpuESP.h"
 #include "Video.h"
@@ -96,6 +97,7 @@ uint8_t OSD::last_focus = 0;               // To check for changes
 unsigned short OSD::last_begin_row = 0; // To check for changes
 
 uint8_t OSD::menu_level = 0;
+bool OSD::inMenu = false;
 bool OSD::menu_saverect = false;
 unsigned short OSD::menu_curopt = 1;
 unsigned int OSD::SaveRectpos = 0;
@@ -1255,6 +1257,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
         else if (KeytoESP == fabgl::VK_F1) {
 
             menu_curopt = 1;
+            OSD::inMenu = true;
 
             while(1) {
 
@@ -1610,7 +1613,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                     }
                 }
             }
-            else if (opt == 7) {
+            else if (opt == 8) {
                 // ***********************************************************************************
                 // BETADISK MENU
                 // ***********************************************************************************
@@ -1660,12 +1663,12 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                             }
                         }
                     } else {
-                        menu_curopt = 7;
+                        menu_curopt = 8;
                         break;
                     }
                 }
             }
-            else if (opt == 4) {
+            else if (opt == 5) {
                 // ***********************************************************************************
                 // MACHINE MENU
                 // ***********************************************************************************
@@ -1911,13 +1914,13 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                         menu_saverect = false;
 
                     } else {
-                        menu_curopt = 4;
+                        menu_curopt = 5;
                         break;
                     }
 
                 }
             }
-            else if (opt == 5) {
+            else if (opt == 6) {
                 // ***********************************************************************************
                 // OPTIONS MENU
                 // ***********************************************************************************
@@ -3030,12 +3033,12 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                         }
 
                     } else {
-                        menu_curopt = 5;
+                        menu_curopt = 6;
                         break;
                     }
                 }
             }
-            else if (opt == 6) {
+            else if (opt == 7) {
                 // ***********************************************************************************
                 // RESET MENU
                 // ***********************************************************************************
@@ -3140,7 +3143,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                         return;
 
                     } else {
-                        menu_curopt = 6;
+                        menu_curopt = 7;
                         break;
                     }
                 }
@@ -3173,7 +3176,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                         }
                     }
                     else {
-                        menu_curopt = 2;
+                        menu_curopt = 3;
                         break;
                     }
                 }
@@ -3184,7 +3187,13 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                     return;
                 }
             }
-            else if (opt == 8) { // Help
+            else if (opt == 4) {
+                // ***********************************************************************************
+                // BLUETOOTH MENU
+                // ***********************************************************************************
+                BluetoothMenu::doMenu();
+            }
+            else if (opt == 9) { // Help
 
                 OSD::drawKbdLayout(ZXKeyb::Exists ? 3 : 2);
 
@@ -3220,12 +3229,13 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                 return;
 
             }
-            else if (opt == 9) {
+            else if (opt == 10) {
                 AboutDlg();
                 return;
             }
             else break;
         }
+        OSD::inMenu = false;
         }
 
     }
@@ -3793,16 +3803,7 @@ esp_err_t OSD::updateROM(FILE *customrom, uint8_t arch) {
     // printf("size: %ld\n", partition->size); // size of partition, not binary
     // printf("partition label: %s\n", partition->label);
 
-    // Grab next update target
-    // const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
-
-    // char splabel[17]="esp0";
-    // if (strcmp(partition->label,splabel)==0) strcpy(splabel,"esp1"); else strcpy(splabel,"esp1");
-    // const esp_partition_t *target = esp_partition_find_first(ESP_PARTITION_TYPE_APP,ESP_PARTITION_SUBTYPE_ANY, (const char *) splabel);
-
-    string splabel;
-    if (strcmp(partition->label,"esp0")==0) splabel = "esp1"; else splabel= "esp0";
-    const esp_partition_t *target = esp_partition_find_first(ESP_PARTITION_TYPE_APP,ESP_PARTITION_SUBTYPE_ANY,splabel.c_str());
+    const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
     if (target == NULL) {
         return ESP_ERR_NOT_FOUND;
     }
@@ -4289,11 +4290,7 @@ esp_err_t OSD::updateFirmware(FILE *firmware) {
         return ESP_ERR_NOT_FOUND;
     }
 
-    // Grab next update target
-    // const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
-    string splabel;
-    if (strcmp(partition->label,"esp0")==0) splabel = "esp1"; else splabel= "esp0";
-    const esp_partition_t *target = esp_partition_find_first(ESP_PARTITION_TYPE_APP,ESP_PARTITION_SUBTYPE_ANY,splabel.c_str());
+    const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
     if (target == NULL) {
         return ESP_ERR_NOT_FOUND;
     }
