@@ -3803,7 +3803,6 @@ esp_err_t OSD::updateROM(FILE *customrom, uint8_t arch) {
     // printf("size: %ld\n", partition->size); // size of partition, not binary
     // printf("partition label: %s\n", partition->label);
 
-    // Next OTA slot only — never the factory/multiloader partition.
     const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
     if (target == NULL) {
         return ESP_ERR_NOT_FOUND;
@@ -4291,7 +4290,6 @@ esp_err_t OSD::updateFirmware(FILE *firmware) {
         return ESP_ERR_NOT_FOUND;
     }
 
-    // Next OTA slot only — never the factory/multiloader partition.
     const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
     if (target == NULL) {
         return ESP_ERR_NOT_FOUND;

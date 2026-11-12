@@ -1,5 +1,3 @@
-# ESPectrum on 4MB flash with multiloader
-# factory = loader (0x120000); ota_0 = ESPectrum (0x2C0000)
 # Name,   Type, SubType, Offset,   Size,      Flags
 nvs,      data, nvs,     0x9000,   0x5000,
 otadata,  data, ota,     0xe000,   0x2000,
