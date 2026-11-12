@@ -144,8 +144,7 @@ static void platform_init(int argc, const char **argv) {
 
 static void platform_on_init_complete(void) {
     ESP_LOGI(TAG, "Bluepad32 ready — auto-connect paired gamepads");
-    uni_bt_allow_incoming_connections(true);
-    uni_bt_start_scanning_and_autoconnect_unsafe();
+    uni_bt_enable_new_connections_unsafe(true);
     s_bt_ready = true;
     s_accept_new = true;
     s_boot_scan_until = esp_timer_get_time() + 25000000LL;
@@ -206,7 +205,7 @@ static uni_error_t platform_on_device_ready(uni_hid_device_t *d) {
     s_accept_new = false;
     portEXIT_CRITICAL(&s_lock);
 
-    uni_bt_stop_scanning_safe();
+    uni_bt_enable_new_connections_safe(false);
     return UNI_ERROR_SUCCESS;
 }
 
@@ -315,7 +314,7 @@ void BluetoothMenu::applyToJoystick() {
         s_boot_scan_until = 0;
         s_accept_new = s_connected ? false : true;
         if (s_connected)
-            uni_bt_stop_scanning_safe();
+            uni_bt_enable_new_connections_safe(false);
     }
 
     if (!s_connected)
@@ -353,8 +352,7 @@ void BluetoothMenu::pairDevices() {
 
     s_pairing = true;
     s_accept_new = true;
-    uni_bt_allow_incoming_connections(true);
-    uni_bt_start_scanning_and_autoconnect_safe();
+    uni_bt_enable_new_connections_safe(true);
 
     OSD::osdCenteredMsg(BT_MSG_PAIR_HINT[Config::lang], LEVEL_INFO, 1200);
 
@@ -388,7 +386,7 @@ void BluetoothMenu::pairDevices() {
         if (opt == 0) {
             s_pairing = false;
             if (s_connected)
-                uni_bt_stop_scanning_safe();
+                uni_bt_enable_new_connections_safe(false);
             return;
         }
 
@@ -397,7 +395,7 @@ void BluetoothMenu::pairDevices() {
             OSD::osdCenteredMsg(msg, LEVEL_OK, 1500);
             s_pairing = false;
             s_accept_new = false;
-            uni_bt_stop_scanning_safe();
+            uni_bt_enable_new_connections_safe(false);
             return;
         }
 
@@ -448,8 +446,7 @@ void BluetoothMenu::connectPaired() {
     }
 
     s_accept_new = true;
-    uni_bt_allow_incoming_connections(true);
-    uni_bt_start_scanning_and_autoconnect_safe();
+    uni_bt_enable_new_connections_safe(true);
 
     OSD::osdCenteredMsg(BT_MSG_WAITING[Config::lang], LEVEL_INFO, 800);
 
@@ -471,10 +468,10 @@ void BluetoothMenu::connectPaired() {
     if (s_connected) {
         OSD::osdCenteredMsg(string(BT_MSG_CONNECTED[Config::lang]) + " " + connectedName(), LEVEL_OK, 1500);
         s_accept_new = false;
-        uni_bt_stop_scanning_safe();
+        uni_bt_enable_new_connections_safe(false);
     } else {
         OSD::osdCenteredMsg(BT_MSG_NOT_FOUND[Config::lang], LEVEL_WARN, 1500);
-        uni_bt_stop_scanning_safe();
+        uni_bt_enable_new_connections_safe(false);
     }
 }
 
