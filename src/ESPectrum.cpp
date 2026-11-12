@@ -1347,7 +1347,7 @@ void ESPectrum::reset() {
 //=======================================================================================
 // KEYBOARD / KEMPSTON
 //=======================================================================================
-IRAM_ATTR bool ESPectrum::readKbd(fabgl::VirtualKeyItem *Nextkey) {
+bool ESPectrum::readKbd(fabgl::VirtualKeyItem *Nextkey) {
 
     bool r = PS2Controller.keyboard()->getNextVirtualKey(Nextkey);
     // Global keys
@@ -1373,7 +1373,7 @@ IRAM_ATTR bool ESPectrum::readKbd(fabgl::VirtualKeyItem *Nextkey) {
 //
 // Read second ps/2 port and inject on first queue
 //
-IRAM_ATTR void ESPectrum::readKbdJoy() {
+void ESPectrum::readKbdJoy() {
 
     if (ps2kbd2) {
 
@@ -1421,7 +1421,7 @@ bool ESPectrum::mouseButtonR = 0;
 // static uint8_t PS2cols[8] = { 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf };
 static uint8_t PS2cols[8] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-IRAM_ATTR void ESPectrum::processKeyboard() {
+void ESPectrum::processKeyboard() {
 
     bool r = false;
 
