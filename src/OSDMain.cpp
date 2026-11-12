@@ -3803,16 +3803,8 @@ esp_err_t OSD::updateROM(FILE *customrom, uint8_t arch) {
     // printf("size: %ld\n", partition->size); // size of partition, not binary
     // printf("partition label: %s\n", partition->label);
 
-    // Grab next update target
-    // const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
-
-    // char splabel[17]="esp0";
-    // if (strcmp(partition->label,splabel)==0) strcpy(splabel,"esp1"); else strcpy(splabel,"esp1");
-    // const esp_partition_t *target = esp_partition_find_first(ESP_PARTITION_TYPE_APP,ESP_PARTITION_SUBTYPE_ANY, (const char *) splabel);
-
-    string splabel;
-    if (strcmp(partition->label,"esp0")==0) splabel = "esp1"; else splabel= "esp0";
-    const esp_partition_t *target = esp_partition_find_first(ESP_PARTITION_TYPE_APP,ESP_PARTITION_SUBTYPE_ANY,splabel.c_str());
+    // Next OTA slot only — never the factory/multiloader partition.
+    const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
     if (target == NULL) {
         return ESP_ERR_NOT_FOUND;
     }
@@ -4299,11 +4291,8 @@ esp_err_t OSD::updateFirmware(FILE *firmware) {
         return ESP_ERR_NOT_FOUND;
     }
 
-    // Grab next update target
-    // const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
-    string splabel;
-    if (strcmp(partition->label,"esp0")==0) splabel = "esp1"; else splabel= "esp0";
-    const esp_partition_t *target = esp_partition_find_first(ESP_PARTITION_TYPE_APP,ESP_PARTITION_SUBTYPE_ANY,splabel.c_str());
+    // Next OTA slot only — never the factory/multiloader partition.
+    const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
     if (target == NULL) {
         return ESP_ERR_NOT_FOUND;
     }
