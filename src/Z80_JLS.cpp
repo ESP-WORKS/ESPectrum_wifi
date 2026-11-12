@@ -920,7 +920,7 @@ void Z80::bitTest(uint8_t mask, uint8_t reg) {
     flagQ = true;
 }
 
-IRAM_ATTR void Z80::check_trdos() {
+void Z80::check_trdos() {
 
     if ((Config::DiskCtrl != 0 || ESPectrum::trdos == true || Z80Ops::isPentagon) && !Z80Ops::is2a3) {
 

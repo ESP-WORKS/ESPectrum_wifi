@@ -328,7 +328,7 @@ bool ESPectrum::magicBtnFromBootlRc = false;
 //     return (unsigned long) (esp_timer_get_time() / 1000ULL);
 // }
 
-IRAM_ATTR void delayMicroseconds(int64_t us)
+void delayMicroseconds(int64_t us)
 {
     int64_t m = esp_timer_get_time();
     if(us){
@@ -2211,7 +2211,7 @@ IRAM_ATTR void ESPectrum::COVOXGetSample() {
 // MAIN LOOP
 //=======================================================================================
 
-IRAM_ATTR void ESPectrum::loop() {
+void ESPectrum::loop() {
 
 static uint8_t OSDbgcolor = 1;
 

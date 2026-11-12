@@ -510,7 +510,7 @@ IRAM_ATTR void VIDEO::MainScreen_Blank_2A3(unsigned int statestoadd, bool conten
 IRAM_ATTR void VIDEO::MainScreen_Blank_Opcode(bool contended) { MainScreen_Blank(4, contended); }
 IRAM_ATTR void VIDEO::MainScreen_Blank_Opcode_2A3(bool contended) { MainScreen_Blank_2A3(4, contended); }
 
-IRAM_ATTR void VIDEO::MainScreen_Blank_Snow(unsigned int statestoadd, bool contended) {
+void VIDEO::MainScreen_Blank_Snow(unsigned int statestoadd, bool contended) {
 
     if (Z80Ops::is2a3 && contended && (CPU::tstates >= (tstateDraw - 3))) {
         statestoadd += wait_st[CPU::tstates - (tstateDraw - 3)];
@@ -548,7 +548,7 @@ IRAM_ATTR void VIDEO::MainScreen_Blank_Snow(unsigned int statestoadd, bool conte
 
 }
 
-IRAM_ATTR void VIDEO::MainScreen_Blank_Snow_Opcode(bool contended) {
+void VIDEO::MainScreen_Blank_Snow_Opcode(bool contended) {
 
     if (Z80Ops::is2a3 && contended && (CPU::tstates >= (tstateDraw - 3))) {
         CPU::tstates += 4 + wait_st[CPU::tstates - (tstateDraw - 3)];
@@ -657,7 +657,7 @@ IRAM_ATTR void VIDEO::MainScreen_2A3(unsigned int statestoadd, bool contended) {
 
 }
 
-IRAM_ATTR void VIDEO::MainScreen_OSD_2A3(unsigned int statestoadd, bool contended) {
+void VIDEO::MainScreen_OSD_2A3(unsigned int statestoadd, bool contended) {
 
     uint8_t att;
 
@@ -702,7 +702,7 @@ IRAM_ATTR void VIDEO::MainScreen_OSD_2A3(unsigned int statestoadd, bool contende
 
 }
 
-IRAM_ATTR void VIDEO::MainScreen_OSD(unsigned int statestoadd, bool contended) {
+void VIDEO::MainScreen_OSD(unsigned int statestoadd, bool contended) {
 
     if (contended) statestoadd += wait_st[CPU::tstates - tstateDraw];
 
@@ -746,7 +746,7 @@ IRAM_ATTR void VIDEO::MainScreen_Opcode(bool contended) { Draw(4,contended); }
 // ----------------------------------------------------------------------------------
 // ULA cycle perfect emulation with snow effect support
 // ----------------------------------------------------------------------------------
-IRAM_ATTR void VIDEO::MainScreen_Snow(unsigned int statestoadd, bool contended) {
+void VIDEO::MainScreen_Snow(unsigned int statestoadd, bool contended) {
 
     bool do_stats = false;
 
@@ -840,7 +840,7 @@ IRAM_ATTR void VIDEO::MainScreen_Snow(unsigned int statestoadd, bool contended) 
 // ----------------------------------------------------------------------------------
 // ULA cycle perfect emulation with snow effect support
 // ----------------------------------------------------------------------------------
-IRAM_ATTR void VIDEO::MainScreen_Snow_Opcode(bool contended) {
+void VIDEO::MainScreen_Snow_Opcode(bool contended) {
 
     int snow_effect = 0;
     unsigned int addr;
@@ -978,10 +978,10 @@ IRAM_ATTR void VIDEO::MainScreen_Snow_Opcode(bool contended) {
 
 IRAM_ATTR void VIDEO::Blank(unsigned int statestoadd, bool contended) {  CPU::tstates += statestoadd; }
 IRAM_ATTR void VIDEO::Blank_Opcode(bool contended) { CPU::tstates += 4; }
-IRAM_ATTR void VIDEO::Blank_Snow(unsigned int statestoadd, bool contended) { CPU::tstates += statestoadd; }
-IRAM_ATTR void VIDEO::Blank_Snow_Opcode(bool contended) { CPU::tstates += 4; }
+void VIDEO::Blank_Snow(unsigned int statestoadd, bool contended) {  CPU::tstates += statestoadd; }
+void VIDEO::Blank_Snow_Opcode(bool contended) { CPU::tstates += 4; }
 
-IRAM_ATTR void VIDEO::EndFrame() {
+void VIDEO::EndFrame() {
 
     linedraw_cnt = lin_end;
 
@@ -1113,7 +1113,7 @@ IRAM_ATTR void VIDEO::BottomBorder() {
 
 }
 
-IRAM_ATTR void VIDEO::BottomBorder_OSD() {
+void VIDEO::BottomBorder_OSD() {
 
     while (lastBrdTstate <= CPU::tstates) {
 
@@ -1153,7 +1153,7 @@ IRAM_ATTR void VIDEO::Border_Blank() {
 static int brdcol_end = 0;
 static int brdcol_end1 = 0;
 
-IRAM_ATTR void VIDEO::TopBorder_Blank_Pentagon() {
+void VIDEO::TopBorder_Blank_Pentagon() {
 
     if (CPU::tstates >= tStatesBorder) {
 
@@ -1169,7 +1169,7 @@ IRAM_ATTR void VIDEO::TopBorder_Blank_Pentagon() {
 
 }
 
-IRAM_ATTR void VIDEO::TopBorder_Pentagon() {
+void VIDEO::TopBorder_Pentagon() {
 
     while (lastBrdTstate <= CPU::tstates) {
 
@@ -1195,7 +1195,7 @@ IRAM_ATTR void VIDEO::TopBorder_Pentagon() {
 
 }
 
-IRAM_ATTR void VIDEO::MiddleBorder_Pentagon() {
+void VIDEO::MiddleBorder_Pentagon() {
 
     while (lastBrdTstate <= CPU::tstates) {
 
@@ -1224,7 +1224,7 @@ IRAM_ATTR void VIDEO::MiddleBorder_Pentagon() {
 
 }
 
-IRAM_ATTR void VIDEO::BottomBorder_Pentagon() {
+void VIDEO::BottomBorder_Pentagon() {
 
     while (lastBrdTstate <= CPU::tstates) {
 
@@ -1249,7 +1249,7 @@ IRAM_ATTR void VIDEO::BottomBorder_Pentagon() {
 
 }
 
-IRAM_ATTR void VIDEO::BottomBorder_OSD_Pentagon() {
+void VIDEO::BottomBorder_OSD_Pentagon() {
 
     while (lastBrdTstate <= CPU::tstates) {
 
