@@ -293,6 +293,10 @@ void BluetoothMenu::setup() {
     memset(s_disc, 0, sizeof(s_disc));
     xTaskCreatePinnedToCore(&btstack_task, "btstack", 8192, NULL, 5, NULL, 0);
     ESP_LOGI(TAG, "Bluepad32 task started");
+
+    int64_t deadline = esp_timer_get_time() + 4000000LL;
+    while (!s_bt_ready && esp_timer_get_time() < deadline)
+        vTaskDelay(pdMS_TO_TICKS(20));
 }
 
 bool BluetoothMenu::isConnected() {

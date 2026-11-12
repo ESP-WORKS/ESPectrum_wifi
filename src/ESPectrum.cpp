@@ -908,6 +908,10 @@ void ESPectrum::setup() {
 
     if (Config::slog_on) showMemInfo("RAM Initialized");
 
+    // BT controller reads PHY cal from flash; that disables the cache.
+    // Start it before VGA/I2S ISRs are running or core 1 panics.
+    BluetoothMenu::setup();
+
     //=======================================================================================
     // VIDEO
     //=======================================================================================
@@ -1141,8 +1145,6 @@ void ESPectrum::setup() {
         Config::save("ram");
 
     }
-
-    BluetoothMenu::setup();
 
     if (Config::slog_on) showMemInfo("Setup finished.");
 
