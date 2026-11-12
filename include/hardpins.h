@@ -42,12 +42,14 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 // PS/2 (fabGL library) GPIOs
 // Allowed GPIOs: GPIO_NUM_0, GPIO_NUM_2, GPIO_NUM_4, GPIO_NUM_12, GPIO_NUM_13, GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_25, GPIO_NUM_26, GPIO_NUM_27, GPIO_NUM_32, GPIO_NUM_33
 // Not allowed from GPIO_NUM_34 to GPIO_NUM_39
-// Pinos padrao usados pelo preset PS2Preset::KeyboardPort0 do fabGL.
+// Pinos padrao usados pelos presets do fabGL:
+//   PS2Preset::KeyboardPort0 usa PORT1 (33/32) para o teclado.
+//   PS2Preset::KeyboardPort0_MousePort1 usa PORT1 (33/32) para o teclado e PORT2 (26/27) para o mouse.
 // Usados como referencia para saber se o bootl.rc pediu pinos customizados.
 #define PIN_CLK_PS2PORT1 GPIO_NUM_33
 #define PIN_DAT_PS2PORT1 GPIO_NUM_32
-// #define PIN_CLK_PS2PORT2 GPIO_NUM_26
-// #define PIN_DAT_PS2PORT2 GPIO_NUM_27
+#define PIN_CLK_PS2PORT2 GPIO_NUM_26
+#define PIN_DAT_PS2PORT2 GPIO_NUM_27
 
 // Storage mode: pins for external SD card (LILYGO TTGO VGA32 Board and ESPectrum Board)
 #define PIN_NUM_MISO_LILYGO_ESPECTRUM GPIO_NUM_2

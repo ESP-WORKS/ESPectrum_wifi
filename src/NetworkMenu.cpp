@@ -913,19 +913,32 @@ void NetworkMenu::wosSearch() {
         return;
     }
 
-    // Menu de versoes — usuario escolhe ou ESC para voltar
-    string vmenu = chosen.title.substr(0, 36) + "\n";
+    // Menu de versoes — usuario escolhe ou ESC para voltar.
+    //
+    // Nao usamos menuRun aqui porque o auto-ajuste de borda em OSDMenu.cpp
+    // (if x + cols*FONT_W > rmax*FONT_W → x = (rmax - cols)*FONT_W) cola o
+    // menu na direita independente do menu_level, dando x=120 em tela 320
+    // tanto pra menu_level=2 quanto 3. simpleMenuRun aceita x,y explicitos
+    // (mesmo esquema usado para os popups de banks/joy) e nos deixa colocar
+    // o menu de versoes colado a esquerda com largura cheia.
+    string vmenu = chosen.title.substr(0, 46) + "\n";
     for (auto &f : files)
-        vmenu += f.name.substr(0, 38) + "\n";
+        vmenu += f.name.substr(0, 46) + "\n";
 
-    OSD::menu_level    = 3;
-    OSD::menu_curopt   = 1;
-    OSD::menu_saverect = true;
-    uint8_t vsel = OSD::menuRun(vmenu);
+    OSD::menu_curopt = 1;
+    uint8_t vsel = OSD::simpleMenuRun(vmenu, 12, 24, 15, 48);
     if (vsel == 0) return; // ESC volta
 
     const string file_zip  = files[vsel - 1].path;
     const string file_name = files[vsel - 1].name;
+
+    // Limpa a tela antes do download. O menu principal (level 0) foi aberto
+    // com menu_saverect=false em OSDMain, entao nao existe backbuffer dele
+    // para restaurar — restoreBackbufferData sozinho nao resolve esse caso.
+    // Pintamos a tela toda com a cor PAPER do Spectrum em idle (branco),
+    // que fica visualmente consistente com o emulador recem-ligado em vez
+    // da bagunça de menus empilhados.
+    VIDEO::vga.fillRect(0, 0, OSD::scrW, OSD::scrH, zxColor(7, 0));
 
     // Download via proxy
     string dl_url = proxy + "?action=download&file=" + file_zip;
@@ -983,4 +996,10 @@ void NetworkMenu::wosSearch() {
     }
 
     OSD::osdCenteredMsg(NET_MSG_DOWNLOAD_OK[Config::lang], LEVEL_OK, 1500);
+
+    // Sinaliza para OSDMain fechar o OSD inteiro em vez de voltar ao menu
+    // de rede. O check pos-loop em OSDMain detecta esse flag e executa
+    // return do do_OSD, resultando em todos os menus fechados e emulador
+    // assumindo a tela — mesmo comportamento da troca de idioma.
+    s_exit_osd_after_load = true;
 }

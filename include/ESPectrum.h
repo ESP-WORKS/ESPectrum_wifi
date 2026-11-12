@@ -199,6 +199,10 @@ public:
 
     static bool rst_button;
 
+    // Flag: true quando o pino do magic button foi imposto pelo bootl.rc neste boot.
+    // Usada pelo OSD pra mostrar "(bootl.rc)" na opcao ativa do menu "Botao hardware".
+    static bool magicBtnFromBootlRc;
+
     static int32_t mouseX;
     static int32_t mouseY;
     static bool mouseButtonL;

@@ -3082,6 +3082,12 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                                 if (nfind == prev_opt) {
                                     Mnustr.replace(pos + 1,2,"*");
                                     menu_curopt = optcnt;
+                                    if (ESPectrum::magicBtnFromBootlRc) {
+                                        // Marca a opcao ativa como vinda do bootl.rc, ex: "GPI36 (bootl.rc)\t[*]"
+                                        std::size_t tabpos = Mnustr.rfind('\t', pos);
+                                        Mnustr.insert(tabpos, " (bootl.rc)");
+                                        pos += 11; // desloca pos pelo tamanho do texto inserido
+                                    }
                                 } else {
                                     Mnustr.replace(pos + 1,2," ");
                                 }
@@ -3096,6 +3102,9 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                                 if (Config::rst_button != prev_opt) {
                                     if (Config::rst_button) gpio_set_direction((gpio_num_t)Config::rst_button, (gpio_mode_t)GPIO_MODE_INPUT);
                                     Config::save("rst_button");
+                                    // Usuario escolheu manualmente: para de exibir "(bootl.rc)" nesta sessao.
+                                    // Se o bootl.rc continuar no SD, ele volta a mandar no proximo boot.
+                                    ESPectrum::magicBtnFromBootlRc = false;
                                 }
                                 menu_curopt = opt2;
                                 menu_saverect = false;
@@ -3157,7 +3166,9 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                         menu_curopt = 2;
                         menu_saverect = false;
                         if (NetworkMenu::shouldExitOsdAfterLoad()) {
-                            NetworkMenu::clearExitOsdAfterLoad();
+                            // Nao zera o flag aqui — o check pos-loop
+                            // precisa dele true para dar return do do_OSD
+                            // e fechar o OSD inteiro (igual troca de idioma).
                             break;
                         }
                     }

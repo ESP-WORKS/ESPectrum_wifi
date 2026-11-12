@@ -84,55 +84,111 @@ bool ESPectrum::ps2mouse = false;
 // Comecam nos defaults do preset KeyboardPort0 do fabGL.
 static int s_ps2_kbd_clk = PIN_CLK_PS2PORT1;
 static int s_ps2_kbd_dat = PIN_DAT_PS2PORT1;
+static int s_ps2_mouse_clk = PIN_CLK_PS2PORT2;
+static int s_ps2_mouse_dat = PIN_DAT_PS2PORT2;
+static int s_magic_btn = -1;   // Pino efetivo do magic button apos ler (ou nao) o bootl.rc. -1 = bootl.rc nao definiu.
 
 // Le o bootl.rc do SD (gerado pelo bootloader) para obter os pinos do
-// teclado PS/2. Formato: "kbddat=32\nkbdclk=33\nmagicb=36\n"
-// (a linha magicb e' ignorada aqui, nao mexe no magic button).
-// Se o SD nao estiver disponivel ou o arquivo nao existir, kbd_clk/kbd_dat
-// saem como -1 e o chamador aplica os defaults.
-static void readBootlRcKbdPins(int &kbd_clk, int &kbd_dat) {
+// teclado PS/2, mouse PS/2 e magic button. Formato:
+//   kbdclk=33
+//   kbddat=32
+//   mouseclk=26
+//   mousedat=27
+//   magicb=36
+// Cada tag e opcional. As nao encontradas voltam como -1 e o chamador aplica os defaults.
 
-    kbd_clk = -1;
-    kbd_dat = -1;
+static void readBootlRcPins(int &kbd_clk, int &kbd_dat,
+                            int &mouse_clk, int &mouse_dat,
+                            int &magic_btn) {
+
+    kbd_clk   = -1;
+    kbd_dat   = -1;
+    mouse_clk = -1;
+    mouse_dat = -1;
+    magic_btn = -1;
 
     if (!FileUtils::SDReady) FileUtils::initFileSystem();
 
     if (!FileUtils::SDReady) {
-        printf("[bootl.rc] SD indisponivel, usando defaults (CLK=%d DAT=%d)\n",
-            PIN_CLK_PS2PORT1, PIN_DAT_PS2PORT1);
+        printf("[bootl.rc] SD indisponivel, usando defaults LilyGo "
+               "(kbd CLK=%d DAT=%d, mouse CLK=%d DAT=%d)\n",
+            PIN_CLK_PS2PORT1, PIN_DAT_PS2PORT1,
+            PIN_CLK_PS2PORT2, PIN_DAT_PS2PORT2);
         return;
     }
 
     FILE *f = fopen(MOUNT_POINT_SD "/bootl.rc", "r");
     if (!f) {
-        printf("[bootl.rc] nao encontrado, usando defaults (CLK=%d DAT=%d)\n",
-            PIN_CLK_PS2PORT1, PIN_DAT_PS2PORT1);
+        printf("[bootl.rc] nao encontrado, usando defaults LilyGo "
+               "(kbd CLK=%d DAT=%d, mouse CLK=%d DAT=%d)\n",
+            PIN_CLK_PS2PORT1, PIN_DAT_PS2PORT1,
+            PIN_CLK_PS2PORT2, PIN_DAT_PS2PORT2);
         return;
     }
 
     char line[32];
     int val;
     while (fgets(line, sizeof(line), f)) {
-        if (sscanf(line, "kbdclk=%d", &val) == 1) kbd_clk = val;
-        if (sscanf(line, "kbddat=%d", &val) == 1) kbd_dat = val;
+        if (sscanf(line, "kbdclk=%d",   &val) == 1) kbd_clk   = val;
+        if (sscanf(line, "kbddat=%d",   &val) == 1) kbd_dat   = val;
+        if (sscanf(line, "mouseclk=%d", &val) == 1) mouse_clk = val;
+        if (sscanf(line, "mousedat=%d", &val) == 1) mouse_dat = val;
+        if (sscanf(line, "magicb=%d",   &val) == 1) magic_btn = val;
     }
     fclose(f);
 
-    printf("[bootl.rc] CLK=%d DAT=%d\n", kbd_clk, kbd_dat);
+    printf("[bootl.rc] lido: kbdclk=%d kbddat=%d mouseclk=%d mousedat=%d magicb=%d\n",
+        kbd_clk, kbd_dat, mouse_clk, mouse_dat, magic_btn);
 
+}
+
+
+
+// Aplica os overrides do bootl.rc: preenche s_ps2_kbd_clk/dat, s_ps2_mouse_clk/dat e s_magic_btn,
+// e atualiza Config::rst_button + ESPectrum::magicBtnFromBootlRc.
+// Retorna nos out params se cada dispositivo (teclado / mouse) ficou com pinos
+// customizados (i.e. diferentes dos defaults do preset correspondente).
+static void applyBootlRcOverrides(bool &kbdCustom, bool &mouseCustom) {
+
+    int kbd_clk, kbd_dat, mouse_clk, mouse_dat, magic_btn;
+    readBootlRcPins(kbd_clk, kbd_dat, mouse_clk, mouse_dat, magic_btn);
+
+    s_ps2_kbd_clk   = (kbd_clk   < 0) ? PIN_CLK_PS2PORT1 : kbd_clk;
+    s_ps2_kbd_dat   = (kbd_dat   < 0) ? PIN_DAT_PS2PORT1 : kbd_dat;
+    s_ps2_mouse_clk = (mouse_clk < 0) ? PIN_CLK_PS2PORT2 : mouse_clk;
+    s_ps2_mouse_dat = (mouse_dat < 0) ? PIN_DAT_PS2PORT2 : mouse_dat;
+    s_magic_btn     = magic_btn;
+
+    // Se o bootl.rc definiu magicb=, ele manda: sobrescreve o valor em MEMORIA
+    // (nao persiste na NVS -- igual ja fazemos com kbdclk/kbddat). Se o SD/arquivo
+    // sumir num boot futuro, volta a valer o que estiver salvo na NVS normalmente.
+    if (s_magic_btn >= 0) {
+        Config::rst_button = (uint8_t)s_magic_btn;
+        ESPectrum::magicBtnFromBootlRc = true;
+    } else {
+        ESPectrum::magicBtnFromBootlRc = false;
+    }
+
+    kbdCustom   = (s_ps2_kbd_clk   != PIN_CLK_PS2PORT1 || s_ps2_kbd_dat   != PIN_DAT_PS2PORT1);
+    mouseCustom = (s_ps2_mouse_clk != PIN_CLK_PS2PORT2 || s_ps2_mouse_dat != PIN_DAT_PS2PORT2);
+
+    // Log final: pinos efetivos e origem (bootl.rc / default).
+    printf("[bootl.rc] efetivo: kbd CLK=%d DAT=%d (%s) | mouse CLK=%d DAT=%d (%s) | magicb=%d (%s)\n",
+        s_ps2_kbd_clk, s_ps2_kbd_dat,     kbdCustom   ? "bootl.rc" : "default",
+        s_ps2_mouse_clk, s_ps2_mouse_dat, mouseCustom ? "bootl.rc" : "default",
+        (s_magic_btn >= 0 ? s_magic_btn : (int)Config::rst_button),
+        (s_magic_btn >= 0) ? "bootl.rc" : "NVS");
 }
 
 // Inicializa o teclado PS/2 (porta unica) usando os pinos efetivos
 // (default do preset ou customizados vindos do bootl.rc).
 static void beginPS2SingleKeyboard() {
 
-    int kbd_clk, kbd_dat;
-    readBootlRcKbdPins(kbd_clk, kbd_dat);
+    bool kbdCustom, mouseCustom;
+    applyBootlRcOverrides(kbdCustom, mouseCustom);
+    (void)mouseCustom; // este caminho nao tem mouse
 
-    s_ps2_kbd_clk = (kbd_clk < 0) ? PIN_CLK_PS2PORT1 : kbd_clk;
-    s_ps2_kbd_dat = (kbd_dat < 0) ? PIN_DAT_PS2PORT1 : kbd_dat;
-
-    if (s_ps2_kbd_clk == PIN_CLK_PS2PORT1 && s_ps2_kbd_dat == PIN_DAT_PS2PORT1) {
+    if (!kbdCustom) {
         // Preset padrao -- FabGL configura os pinos automaticamente.
         ESPectrum::PS2Controller.begin(PS2Preset::KeyboardPort0, KbdMode::CreateVirtualKeysQueue);
     } else {
@@ -145,6 +201,54 @@ static void beginPS2SingleKeyboard() {
             (gpio_num_t)s_ps2_kbd_clk, (gpio_num_t)s_ps2_kbd_dat,
             true,
             true
+        );
+    }
+
+}
+
+// Inicializa teclado PS/2 (port0) + segundo teclado usado como joystick (port1).
+// Estrategia: sempre chama o preset (que monta port0 e port1 nos defaults do FabGL);
+// se o bootl.rc pediu pinos custom pro teclado principal, reinit APENAS o keyboard()
+// do port0. O joystick no port1 (usado pelo ESPjoy) fica intocado.
+static void beginPS2KbdAndJoystick() {
+
+    bool kbdCustom, mouseCustom;
+    applyBootlRcOverrides(kbdCustom, mouseCustom);
+    (void)mouseCustom; // este caminho nao tem mouse
+
+    ESPectrum::PS2Controller.begin(PS2Preset::KeyboardPort0_KeybJoystickPort1, KbdMode::CreateVirtualKeysQueue);
+
+    if (kbdCustom) {
+        ESPectrum::PS2Controller.keyboard()->begin(
+            (gpio_num_t)s_ps2_kbd_clk, (gpio_num_t)s_ps2_kbd_dat,
+            true,
+            true
+        );
+    }
+
+}
+
+// Inicializa teclado PS/2 (port0) + mouse (port1). Mesma estrategia da funcao acima:
+// preset monta os dois nos defaults do FabGL, e se o bootl.rc trouxe pinos custom,
+// reinit apenas o dispositivo afetado (keyboard, mouse ou ambos).
+static void beginPS2KbdAndMouse() {
+
+    bool kbdCustom, mouseCustom;
+    applyBootlRcOverrides(kbdCustom, mouseCustom);
+
+    ESPectrum::PS2Controller.begin(PS2Preset::KeyboardPort0_MousePort1, KbdMode::CreateVirtualKeysQueue);
+
+    if (kbdCustom) {
+        ESPectrum::PS2Controller.keyboard()->begin(
+            (gpio_num_t)s_ps2_kbd_clk, (gpio_num_t)s_ps2_kbd_dat,
+            true,
+            true
+        );
+    }
+
+    if (mouseCustom) {
+        ESPectrum::PS2Controller.mouse()->begin(
+            (gpio_num_t)s_ps2_mouse_clk, (gpio_num_t)s_ps2_mouse_dat
         );
     }
 
@@ -205,6 +309,12 @@ rvmWD1793 ESPectrum::fdd;
 //=======================================================================================
 
 bool ESPectrum::rst_button = false;
+
+// True quando o pino do magic button (Config::rst_button) esta sendo forcado
+// pelo bootl.rc neste boot. Usado so pro menu "Botao hardware" mostrar a tag
+// "(bootl.rc)" ao lado da opcao ativa. Fica false de novo assim que o usuario
+// escolhe manualmente outra opcao no menu (ver OSDMain.cpp).
+bool ESPectrum::magicBtnFromBootlRc = false;
 
 //=======================================================================================
 // ARDUINO FUNCTIONS
@@ -605,7 +715,10 @@ void ESPectrum::setup() {
             // Get chip information
             esp_chip_info_t chip_info;
             esp_chip_info(&chip_info);
-            Config::Board = chip_info.revision < 3 ? BOARD_LILYGO : BOARD_OLIMEX;
+            // Comentado por FG1998
+            // Para tentar evitar problemas com a RobGo Estéreo
+            //Config::Board = chip_info.revision < 3 ? BOARD_LILYGO : BOARD_OLIMEX;
+            Config::Board = BOARD_LILYGO;
         }
         Config::save(); // Firmware updated or reflashed: save all config data
     }
@@ -697,12 +810,12 @@ void ESPectrum::setup() {
             ps2kbd = true;
             break;
         case 1:
-            PS2Controller.begin(PS2Preset::KeyboardPort0_KeybJoystickPort1, KbdMode::CreateVirtualKeysQueue);
+            beginPS2KbdAndJoystick();
             ps2kbd  = true;
             ps2kbd2 = true; // ESPjoy doesn't respond to isKeyboardAvailable so we assume it's there
             break;
         case 2:
-            PS2Controller.begin(PS2Preset::KeyboardPort0_MousePort1, KbdMode::CreateVirtualKeysQueue);
+            beginPS2KbdAndMouse();
             ps2kbd = true;
             ps2mouse = PS2Controller.mouse()->isMouseAvailable();
             if (!ps2mouse) {
