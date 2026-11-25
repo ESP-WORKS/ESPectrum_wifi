@@ -19,6 +19,7 @@ public:
     // Deve ser chamado ANTES de prepareForNetwork() enquanto SD ainda montado
     static void cacheWifiFromSd();
     static void proxyConfig();
+    static void downloadFolderConfig();
 
     static void wosSearch();
 
@@ -43,6 +44,7 @@ private:
         string wifi_ssid = "";
         string wifi_pass = "";
         string proxy_url = "http://alternativebits.com/wos.php";
+        string dl_folder = "/ZX SPECTRUM";
     };
 
     static NetConfig loadConfig();

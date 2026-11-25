@@ -45,6 +45,7 @@ Inclua em OSDMain.cpp: #include "NetworkMenu.h"
 #include <vector>
 
 #include <dirent.h>
+#include <sys/stat.h>
 #include "esp_http_client.h"
 // miniz nao e mais necessario — descompressao feita no proxy PHP
 
@@ -57,6 +58,7 @@ using namespace std;
 #define NVS_WIFI_SSID "net_ssid"
 #define NVS_WIFI_PASS "net_pass"
 #define NVS_PROXY_URL "proxy_url"
+#define NVS_DL_FOLDER "dl_folder"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Statics
@@ -99,18 +101,26 @@ static bool netFileIsGame(const string &path) {
     return ext == "z80" || ext == "sna" || ext == "tap" || ext == "tzx" || ext == "p" || ext == "sp";
 }
 
-static string netFtpDestPath(const string &filename) {
-    const string ext = FileUtils::getLCaseExt(filename);
-    string sub = FileUtils::SNA_Path;
-    if (ext == "tap" || ext == "tzx") sub = FileUtils::TAP_Path;
-    else if (ext == "dsk") sub = FileUtils::DSK_Path;
-    string dest = FileUtils::MountPoint + sub;
+static string netFtpDestPath(const string &filename, const string &dlFolder) {
+    string dest = FileUtils::MountPoint + dlFolder;
     if (dest.back() != '/') dest += '/';
     dest += filename;
     return dest;
 }
 
 
+
+// Cria diretorio recursivamente (um nivel por vez)
+static void ensureDirExists(const string &path) {
+    struct stat st;
+    if (stat(path.c_str(), &st) == 0) return; // ja existe
+    // cria pai primeiro (se houver)
+    size_t pos = path.rfind('/');
+    if (pos != string::npos && pos > 0) {
+        ensureDirExists(path.substr(0, pos));
+    }
+    mkdir(path.c_str(), 0755);
+}
 
 static bool netLoadDownloadedFile(const string &dest) {
     const string ext = FileUtils::getLCaseExt(dest);
@@ -177,6 +187,14 @@ static bool netFlushToSd(const string &local, const uint8_t *data, size_t len, b
     }
 
     vTaskDelay(pdMS_TO_TICKS(30));
+
+    // Cria pasta de destino se nao existir (primeiro chunk apenas)
+    if (first) {
+        size_t lastSlash = local.rfind('/');
+        if (lastSlash != string::npos) {
+            ensureDirExists(local.substr(0, lastSlash));
+        }
+    }
 
     FILE *f = fopen(local.c_str(), first ? "wb" : "ab");
     if (!f) {
@@ -314,6 +332,7 @@ NetworkMenu::NetConfig NetworkMenu::loadConfig() {
         cfg.wifi_ssid = sanitizeWifiText(nvsGetStr(h, NVS_WIFI_SSID, ""), 32);
         cfg.wifi_pass = sanitizeWifiText(nvsGetStr(h, NVS_WIFI_PASS, ""), 64);
         cfg.proxy_url = nvsGetStr(h, NVS_PROXY_URL, "http://alternativebits.com/wos.php");
+        cfg.dl_folder = nvsGetStr(h, NVS_DL_FOLDER, "/ZX SPECTRUM");
         nvs_close(h);
     }
 
@@ -335,6 +354,7 @@ void NetworkMenu::saveConfig(const NetConfig &cfg) {
     nvs_set_str(h, NVS_WIFI_SSID, ssid.c_str());
     nvs_set_str(h, NVS_WIFI_PASS, pass.c_str());
     nvs_set_str(h, NVS_PROXY_URL,  cfg.proxy_url.c_str());
+    nvs_set_str(h, NVS_DL_FOLDER,  cfg.dl_folder.c_str());
 
     nvs_commit(h);
     nvs_close(h);
@@ -648,7 +668,26 @@ void NetworkMenu::proxyConfig() {
     OSD::osdCenteredMsg(NET_MSG_WIFI_SAVED[Config::lang], LEVEL_OK, 1000);
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Menu: Configurar pasta de download
+// ═════════════════════════════════════════════════════════════════════════════
 
+void NetworkMenu::downloadFolderConfig() {
+    NetConfig cfg = loadConfig();
+
+    OSD::saveBackbufferData(0, 0, OSD::scrW, OSD::scrH, true);
+
+    string folder = OSD::input(3, 3, NET_LBL_DLFOLDER[Config::lang],
+        cfg.dl_folder, 20, 48, zxColor(7,1), zxColor(1,0), false);
+
+    OSD::restoreBackbufferData(true);
+
+    if (folder.empty()) return; // ESC
+    cfg.dl_folder = folder;
+
+    saveConfig(cfg);
+    OSD::osdCenteredMsg(NET_MSG_WIFI_SAVED[Config::lang], LEVEL_OK, 1000);
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // World of Spectrum Search — busca via API HTTP + download direto
@@ -985,7 +1024,7 @@ void NetworkMenu::wosSearch() {
     }
 
     // Grava no SD direto (sem descompressao — o proxy ja entregou o .tap)
-    const string dest = netFtpDestPath(file_name);
+    const string dest = netFtpDestPath(file_name, ncfg.dl_folder);
     bool first = true;
     bool ok = netFlushToSd(dest, s_http_buf, s_http_len, first);
     heap_caps_free(s_http_buf); s_http_buf = nullptr;
