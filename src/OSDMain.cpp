@@ -49,6 +49,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #include "Z80_JLS/z80.h"
 #include "roms.h"
 #include "AudioIn.h"
+#include "MultifaceOne.h"
 
 #include "esp_system.h"
 #include "esp_ota_ops.h"
@@ -574,10 +575,17 @@ void OSD::pref_rom_menu() {
 }
 
 // OSD Main Loop
-void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
+void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT, bool ALT) {
 
     static uint8_t last_sna_row = 0;
     fabgl::VirtualKeyItem Nextkey;
+
+    // Alt+F10 → Multiface One red button (Ctrl is Symbol Shift / fire in games)
+    if (ALT && !CTRL && !SHIFT && KeytoESP == fabgl::VK_F10) {
+        printf("MF1:OSD Alt+F10 → pressButton\n");
+        MultifaceOne::pressButton();
+        return;
+    }
 
     // Pause Audio-in if needed
     if (SHIFT && !CTRL) {
@@ -816,8 +824,9 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
         if (KeytoESP == fabgl::VK_F9) { // Input Poke
             pokeDialog();
         } else
-        if (KeytoESP == fabgl::VK_F10) { // NMI
-            Z80::triggerNMI();
+        if (KeytoESP == fabgl::VK_F10) { // NMI / Multiface (legacy Ctrl+F10; prefer Alt+F10)
+            printf("MF1:OSD Ctrl+F10 → pressButton\n");
+            MultifaceOne::pressButton();
         } else
         if (KeytoESP == fabgl::VK_F11) { // Reset to TR-DOS
 
@@ -832,7 +841,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
 
                 if (Z80Ops::is128 || Z80Ops::isPentagon) MemESP::romLatch = 1;
                 MemESP::romInUse = 4;
-                MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+                MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
                 ESPectrum::trdos = true;
 
             } else {
@@ -2845,6 +2854,66 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                                         }
                                     }
                                 }
+                                else if (options_num == 8) {
+                                    menu_level = 3;
+                                    menu_curopt = 1;
+                                    menu_saverect = true;
+                                    while (1) {
+                                        string mf_menu = MENU_MULTIFACE1[Config::lang];
+                                        bool prev_on = Config::MultifaceOne;
+                                        bool prev_st = Config::MultifaceOneStealth;
+                                        if (!prev_on) {
+                                            menu_curopt = 1;
+                                            mf_menu.replace(mf_menu.find("[D",0),2,"[*");
+                                            mf_menu.replace(mf_menu.find("[E",0),2,"[ ");
+                                            mf_menu.replace(mf_menu.find("[S",0),2,"[ ");
+                                        } else if (prev_st) {
+                                            menu_curopt = 3;
+                                            mf_menu.replace(mf_menu.find("[D",0),2,"[ ");
+                                            mf_menu.replace(mf_menu.find("[E",0),2,"[ ");
+                                            mf_menu.replace(mf_menu.find("[S",0),2,"[*");
+                                        } else {
+                                            menu_curopt = 2;
+                                            mf_menu.replace(mf_menu.find("[D",0),2,"[ ");
+                                            mf_menu.replace(mf_menu.find("[E",0),2,"[*");
+                                            mf_menu.replace(mf_menu.find("[S",0),2,"[ ");
+                                        }
+                                        uint8_t opt2 = menuRun(mf_menu);
+                                        if (opt2) {
+                                            if (Z80Ops::is2a3) {
+                                                OSD::osdCenteredMsg(MF1_ARCH_ERR[Config::lang], LEVEL_ERROR, 2000);
+                                            } else if (opt2 == 1) {
+                                                Config::MultifaceOne = false;
+                                                Config::MultifaceOneStealth = false;
+                                                MultifaceOne::pageOut();
+                                                MultifaceOne::Reset(false);
+                                            } else {
+                                                printf("MF1:menu enable opt=%d → Init+LoadROM\n", (int)opt2);
+                                                MultifaceOne::Init();
+                                                if (!MultifaceOne::LoadROM()) {
+                                                    printf("MF1:menu enable FAIL (mf1.rom missing or bad)\n");
+                                                    Config::MultifaceOne = false;
+                                                    OSD::osdCenteredMsg(MF1_ROM_ERR[Config::lang], LEVEL_ERROR, 2500);
+                                                } else {
+                                                    printf("MF1:menu enable OK rom found\n");
+                                                    Config::MultifaceOne = true;
+                                                    Config::MultifaceOneStealth = (opt2 == 3);
+                                                    MultifaceOne::Reset(false);
+                                                }
+                                            }
+                                            if (Config::MultifaceOne != prev_on || Config::MultifaceOneStealth != prev_st) {
+                                                Config::save("MultifaceOne");
+                                                Config::save("MultifaceOneStealth");
+                                            }
+                                            menu_curopt = opt2;
+                                            menu_saverect = false;
+                                        } else {
+                                            menu_curopt = 8;
+                                            menu_level = 2;
+                                            break;
+                                        }
+                                    }
+                                }
                             } else {
                                 menu_curopt = 7;
                                 break;
@@ -3133,7 +3202,7 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                         if (opt2 == 2) {
                             if (Z80Ops::is128 || Z80Ops::isPentagon) MemESP::romLatch = 1;
                             MemESP::romInUse = 4;
-                            MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+                            MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
                             ESPectrum::trdos = true;
                         }
 
@@ -3172,8 +3241,13 @@ void OSD::do_OSD(fabgl::VirtualKey KeytoESP, bool CTRL, bool SHIFT) {
                             break;
                         }
                     }
+                    else if (net_num == 3) {
+                        NetworkMenu::downloadFolderConfig();
+                        menu_curopt = 3;
+                        menu_saverect = false;
+                    }
                     else {
-                        menu_curopt = 2;
+                        menu_curopt = 1;
                         break;
                     }
                 }
@@ -6039,20 +6113,71 @@ string OSD::input(int x, int y, string inputLabel, string text, int inputSize, i
                     }
                 } else {
 
-                    if (Nextkey.vk >= fabgl::VK_0 && Nextkey.vk <= fabgl::VK_9)
-                        ascii = Nextkey.vk + 46;
-                    else if (Nextkey.vk >= fabgl::VK_a && Nextkey.vk <= fabgl::VK_z)
-                        ascii = Nextkey.vk + 75;
-                    else if (Nextkey.vk >= fabgl::VK_A && Nextkey.vk <= fabgl::VK_Z)
-                        ascii = Nextkey.vk + 17;
-                    else if (Nextkey.vk == fabgl::VK_PERIOD)
-                        ascii = '.';
-                    else if (Nextkey.vk == fabgl::VK_COMMA)
-                        ascii = ',';
-                    else if (Nextkey.vk == fabgl::VK_SEMICOLON)
-                        ascii = ';';
-                    else if (Nextkey.vk == fabgl::VK_QUOTE)
-                        ascii = '"';
+                    bool shift = ESPectrum::PS2Controller.keyboard()->isVKDown(fabgl::VK_LSHIFT) ||
+                                 ESPectrum::PS2Controller.keyboard()->isVKDown(fabgl::VK_RSHIFT);
+
+                    if (shift) {
+                        // Shift + number row → special characters (US layout)
+                        switch (Nextkey.vk) {
+                            case fabgl::VK_1        : ascii = '!'; break;
+                            case fabgl::VK_2        : ascii = '@'; break;
+                            case fabgl::VK_3        : ascii = '#'; break;
+                            case fabgl::VK_4        : ascii = '$'; break;
+                            case fabgl::VK_5        : ascii = '%'; break;
+                            case fabgl::VK_6        : ascii = '^'; break;
+                            case fabgl::VK_7        : ascii = '&'; break;
+                            case fabgl::VK_8        : ascii = '*'; break;
+                            case fabgl::VK_9        : ascii = '('; break;
+                            case fabgl::VK_0        : ascii = ')'; break;
+                            case fabgl::VK_MINUS    : ascii = '_'; break;
+                            case fabgl::VK_EQUALS   : ascii = '+'; break;
+                            case fabgl::VK_SEMICOLON: ascii = ':'; break;
+                            case fabgl::VK_QUOTE    : ascii = '\''; break;
+                            case fabgl::VK_COMMA    : ascii = '<'; break;
+                            case fabgl::VK_PERIOD   : ascii = '>'; break;
+                            case fabgl::VK_SLASH    : ascii = '?'; break;
+                            case fabgl::VK_BACKSLASH: ascii = '|'; break;
+                            case fabgl::VK_GRAVEACCENT: ascii = '~'; break;
+                            case fabgl::VK_LEFTBRACKET: ascii = '{'; break;
+                            case fabgl::VK_RIGHTBRACKET: ascii = '}'; break;
+                            default:
+                                // Shift + letter → uppercase (treat as VK_A..VK_Z)
+                                if (Nextkey.vk >= fabgl::VK_a && Nextkey.vk <= fabgl::VK_z)
+                                    ascii = Nextkey.vk + 75 - 32; // uppercase
+                                else if (Nextkey.vk >= fabgl::VK_A && Nextkey.vk <= fabgl::VK_Z)
+                                    ascii = Nextkey.vk + 17;
+                                break;
+                        }
+                    } else {
+                        if (Nextkey.vk >= fabgl::VK_0 && Nextkey.vk <= fabgl::VK_9)
+                            ascii = Nextkey.vk + 46;
+                        else if (Nextkey.vk >= fabgl::VK_a && Nextkey.vk <= fabgl::VK_z)
+                            ascii = Nextkey.vk + 75;
+                        else if (Nextkey.vk >= fabgl::VK_A && Nextkey.vk <= fabgl::VK_Z)
+                            ascii = Nextkey.vk + 17;
+                        else if (Nextkey.vk == fabgl::VK_PERIOD)
+                            ascii = '.';
+                        else if (Nextkey.vk == fabgl::VK_COMMA)
+                            ascii = ',';
+                        else if (Nextkey.vk == fabgl::VK_SEMICOLON)
+                            ascii = ';';
+                        else if (Nextkey.vk == fabgl::VK_QUOTE)
+                            ascii = '"';
+                        else if (Nextkey.vk == fabgl::VK_MINUS)
+                            ascii = '-';
+                        else if (Nextkey.vk == fabgl::VK_EQUALS)
+                            ascii = '=';
+                        else if (Nextkey.vk == fabgl::VK_SLASH)
+                            ascii = '/';
+                        else if (Nextkey.vk == fabgl::VK_BACKSLASH)
+                            ascii = '\\';
+                        else if (Nextkey.vk == fabgl::VK_GRAVEACCENT)
+                            ascii = '`';
+                        else if (Nextkey.vk == fabgl::VK_LEFTBRACKET)
+                            ascii = '[';
+                        else if (Nextkey.vk == fabgl::VK_RIGHTBRACKET)
+                            ascii = ']';
+                    }
 
                 }
 

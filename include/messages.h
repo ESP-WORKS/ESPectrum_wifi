@@ -193,6 +193,10 @@ static const char *OSD_DISK_EJECT[NLANGS] = { OSD_DISK_EJECT_EN,OSD_DISK_EJECT_E
 
 static const char *TRDOS_RESET_ERR[NLANGS] = { TRDOS_RESET_ERR_EN , TRDOS_RESET_ERR_ES, TRDOS_RESET_ERR_PT};
 
+static const char *MF1_ROM_ERR[NLANGS] = { MF1_ROM_ERR_EN, MF1_ROM_ERR_ES, MF1_ROM_ERR_PT};
+static const char *MF1_ARCH_ERR[NLANGS] = { MF1_ARCH_ERR_EN, MF1_ARCH_ERR_ES, MF1_ARCH_ERR_PT};
+static const char *MENU_MULTIFACE1[NLANGS] = { MENU_MULTIFACE1_EN, MENU_MULTIFACE1_ES, MENU_MULTIFACE1_PT};
+
 static const char *MENU_SNA[NLANGS] = { MENU_SNA_EN,MENU_SNA_ES,MENU_SNA_PT};
 
 static const char *MENU_TAPE[NLANGS] = { MENU_TAPE_EN,MENU_TAPE_ES,MENU_TAPE_PT};
@@ -226,6 +230,7 @@ static const char *NET_LBL_HOST[NLANGS]            = { NET_LBL_HOST_EN,         
 static const char *NET_LBL_USER[NLANGS]            = { NET_LBL_USER_EN,            NET_LBL_USER_ES,            NET_LBL_USER_PT            };
 static const char *NET_LBL_PATH[NLANGS]            = { NET_LBL_PATH_EN,            NET_LBL_PATH_ES,            NET_LBL_PATH_PT            };
 static const char *NET_LBL_PROXY[NLANGS]           = { NET_LBL_PROXY_EN,           NET_LBL_PROXY_ES,           NET_LBL_PROXY_PT           };
+static const char *NET_LBL_DLFOLDER[NLANGS]        = { NET_LBL_DLFOLDER_EN,        NET_LBL_DLFOLDER_ES,        NET_LBL_DLFOLDER_PT        };
 
 static const char *MENU_OPTIONS[NLANGS] = { MENU_OPTIONS_EN,MENU_OPTIONS_ES,MENU_OPTIONS_PT};
 

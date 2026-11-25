@@ -31,6 +31,7 @@
 #include "FileUtils.h"
 #include "OSDMain.h"
 #include "messages.h"
+#include "MultifaceOne.h"
 
 
 // #include "Snapshot.h"
@@ -931,7 +932,7 @@ IRAM_ATTR void Z80::check_trdos() {
                 // TR-DOS Rom can be accessed from 48K machines and from Spectrum 128/+2 and Pentagon if the currently mapped ROM is bank 1.
                 if ((Z80Ops::is48) && (MemESP::romInUse == 0) || ((!Z80Ops::is48) && MemESP::romInUse == 1)) {
                     MemESP::romInUse = 4;
-                    MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+                    MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
                     ESPectrum::trdos = true;
                 }
 
@@ -946,7 +947,7 @@ IRAM_ATTR void Z80::check_trdos() {
                 else
                     MemESP::romInUse = MemESP::romLatch;
 
-                MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+                MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
                 ESPectrum::trdos = false;
 
             }
@@ -968,7 +969,7 @@ IRAM_ATTR void Z80::check_trdos() {
 //             else
 //                 MemESP::romInUse = MemESP::romLatch;
 
-//             MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+//             MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
 //             ESPectrum::trdos = false;
 
 //         }
@@ -978,7 +979,7 @@ IRAM_ATTR void Z80::check_trdos() {
 //             // TR-DOS Rom can be accessed from 48K machines and from Spectrum 128/+2 and Pentagon if the currently mapped ROM is bank 1.
 //             if ((Z80Ops::is48) && (MemESP::romInUse == 0) || ((!Z80Ops::is48) && MemESP::romInUse == 1)) {
 //                 MemESP::romInUse = 4;
-//                 MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+//                 MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
 //                 ESPectrum::trdos = true;
 //             }
 
@@ -1050,14 +1051,24 @@ void Z80::nmi(void) {
     push(REG_PC); // 3+3 t-estados + contended si procede
     REG_PC = REG_WZ = 0x0066;
 
+    // Multiface One: hardware pages ROM/RAM on M1 @ $0066 while NMI pending.
+    // Do it here (not in IRAM fetchOpcode — printf/flash there resets the ESP32).
+    if (MultifaceOne::nmiPending)
+        MultifaceOne::checkFetch(0x0066);
+
 }
 
 void Z80::doNMI(void) {
 
+    printf("MF1:Z80::doNMI enter PC=%04X\n", (unsigned)REG_PC);
     activeNMI = false;
     lastFlagQ = false;
     nmi();
-    // printf("NMI!\n");
+    printf("MF1:Z80::doNMI exit PC=%04X paged=%d ram0=%p mfpage=%p\n",
+           (unsigned)REG_PC,
+           (int)MultifaceOne::paged,
+           (void*)MemESP::ramCurrent[0],
+           (void*)MultifaceOne::page);
 
 }
 

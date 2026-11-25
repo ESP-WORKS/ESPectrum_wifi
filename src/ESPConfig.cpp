@@ -166,6 +166,8 @@ uint8_t Config::Board = BOARD_LILYGO;
 bool Config::EarBoost = false;
 bool Config::MicBoost = false;
 bool Config::tapFPI = false;
+bool Config::MultifaceOne = false;
+bool Config::MultifaceOneStealth = false;
 
 enum ConfigType {
     CONFIG_TYPE_STRING,
@@ -276,6 +278,8 @@ const ConfigEntry configEntries[] = {
     {"EarBoost", CONFIG_TYPE_BOOL, &Config::EarBoost},
     {"MicBoost", CONFIG_TYPE_BOOL, &Config::MicBoost},
     {"tapFPI", CONFIG_TYPE_BOOL, &Config::tapFPI},
+    {"MultifaceOne", CONFIG_TYPE_BOOL, &Config::MultifaceOne},
+    {"MultifaceOneStealth", CONFIG_TYPE_BOOL, &Config::MultifaceOneStealth},
 };
 
 // Function to load the configuration

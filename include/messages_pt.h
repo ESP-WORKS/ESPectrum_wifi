@@ -137,6 +137,9 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 
 #define TRDOS_RESET_ERR_PT "Betadisk desativado ou n\x84o dispon\xA1vel"
 
+#define MF1_ROM_ERR_PT "Falta mf1.rom (/sd/ESPectrum WIFI/mf1.rom)"
+#define MF1_ARCH_ERR_PT "Multiface One precisa de 48K (n\x84o +2A/+3)"
+
 #define MENU_SNA_PT \
     "Menu snapshots\n"\
     "Carregar (SNA,Z80,SP,P)\t(F2) >\n"\
@@ -185,7 +188,8 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #define MENU_NET_PT \
     "Acesso Rede\n"\
     "Config. Proxy\t>\n"\
-    "Buscar WoS\t>\n"
+    "Buscar WoS\t>\n"\
+    "Pasta Download\t>\n"
 
 #define NET_MSG_WIFI_CONNECTING_PT  "Conectando WiFi..."
 #define NET_MSG_WIFI_OK_PT          "WiFi conectado!"
@@ -206,6 +210,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 
 #define NET_LBL_PATH_PT             "Caminho: "
 #define NET_LBL_PROXY_PT            "Proxy: "
+#define NET_LBL_DLFOLDER_PT         "Pasta: "
 
 #define MENU_OPTIONS_PT \
     "Menu op\x87\x94" "es\n"\
@@ -287,7 +292,13 @@ To Contact the dev team you can write to zxespectrum@gmail.com
     "48K Issue 2\t>\n"\
 	"ULA TK\t>\n"\
     "Segundo disp. PS/2\t>\n"\
-    "Mouse\t>\n"
+    "Mouse\t>\n"\
+    "Multiface One\t>\n"
+
+#define MENU_MULTIFACE1_PT "Multiface One\n"\
+    "Desligado\t[D]\n"\
+    "Ligado\t[E]\n"\
+    "Stealth (switch OFF)\t[S]\n"
 
 #define MENU_KBD2NDPS2_PT "Dispositivo\n"\
     "Nada\t[N]\n"\

@@ -37,6 +37,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 
 #include <inttypes.h>
 #include <esp_attr.h>
+#include "MultifaceOne.h"
 
 #define MEM_PG_SZ 0x4000
 
@@ -157,7 +158,11 @@ inline void MemESP::writebyte(uint16_t addr, uint8_t data)
 
     uint8_t page = addr >> 14;
 
-    if (page == MemESP::pagingmode2A3) return;
+    if (page == MemESP::pagingmode2A3) {
+        if (MultifaceOne::writeAllowed(addr))
+            MemESP::ramCurrent[0][addr & 0x3fff] = data;
+        return;
+    }
 
     MemESP::ramCurrent[page][addr & 0x3fff] = data;
 

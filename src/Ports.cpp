@@ -42,6 +42,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #include "Tape.h"
 #include "cpuESP.h"
 #include "AudioIn.h"
+#include "MultifaceOne.h"
 
 #include "disk/wd1793.h"
 
@@ -262,6 +263,10 @@ IRAM_ATTR uint8_t Ports::input(uint16_t address) {
         // The default port value is 0xFF.
         data = 0xff;
 
+        // Multiface One (before Kempston — shares 0x1F)
+        if (MultifaceOne::isReady() && MultifaceOne::isPort(address))
+            return MultifaceOne::portIn(address);
+
         // Check if TRDOS Rom is mapped.
         if (ESPectrum::trdos) {
 
@@ -413,7 +418,7 @@ IRAM_ATTR uint8_t Ports::input(uint16_t address) {
 
                 MemESP::romLatch = bitRead(data, 4);
                 MemESP::romInUse = MemESP::romLatch;
-                MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+                MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
             }
 
         }
@@ -496,6 +501,12 @@ IRAM_ATTR void Ports::output(uint16_t address, uint8_t data) {
             VIDEO::Draw(3, Z80Ops::is48 || Z80Ops::is128);   // I/O Contention (Late)
 
     } else {
+
+        // Multiface One — OUT clears NMI pending
+        if (MultifaceOne::isReady() && MultifaceOne::isPort(address)) {
+            MultifaceOne::portOut(address, data);
+            goto lateIOContention;
+        }
 
         // AY ========================================================================
         if ((ESPectrum::AY_emu) && ((address & 0x8002) == 0x8000)) {
@@ -643,7 +654,7 @@ IRAM_ATTR void Ports::output(uint16_t address, uint8_t data) {
 
             MemESP::romLatch = bitRead(data, 4);
             MemESP::romInUse = MemESP::romLatch;
-            MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+            MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
 
             if (MemESP::videoLatch != bitRead(data, 3)) {
                 MemESP::videoLatch = bitRead(data, 3);
@@ -679,7 +690,7 @@ IRAM_ATTR void Ports::output(uint16_t address, uint8_t data) {
                 MemESP::ramContended[3] = MemESP::bankLatch > 3;
             }
 
-            MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+            MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
 
             MemESP::pagingLock = bitRead(data, 5);
 
@@ -715,7 +726,7 @@ IRAM_ATTR void Ports::output(uint16_t address, uint8_t data) {
                 MemESP::romLatch = (bitRead(data, 2) << 1) + (MemESP::romInUse & 0x01) ;
                 MemESP::romInUse = MemESP::romLatch & 0x3;
 
-                MemESP::ramCurrent[0] = MemESP::rom[MemESP::romInUse];
+                MultifaceOne::mapSpectrumRom(MemESP::rom[MemESP::romInUse]);
                 MemESP::ramCurrent[1] = MemESP::ram[5];
                 MemESP::ramCurrent[2] = MemESP::ram[2];
                 MemESP::ramCurrent[3] = MemESP::ram[MemESP::bankLatch];

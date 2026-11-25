@@ -52,6 +52,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #include "fabgl.h"
 #include "roms.h"
 #include "AudioIn.h"
+#include "MultifaceOne.h"
 
 #include "ZXKeyb.h"
 #include "freertos/FreeRTOS.h"
@@ -899,11 +900,18 @@ void ESPectrum::setup() {
     //=======================================================================================
 
     MemESP::Init();
+    MultifaceOne::Init();
+    printf("MF1:boot cfg.MultifaceOne=%d → %s\n",
+           (int)Config::MultifaceOne,
+           Config::MultifaceOne ? "LoadROM" : "skip (disabled)");
+    if (Config::MultifaceOne)
+        MultifaceOne::LoadROM();
 
     // Load romset
     Config::requestMachine(Config::arch, Config::romSet);
 
     MemESP::Reset();
+    MultifaceOne::Reset(true);
 
     if (Config::slog_on) showMemInfo("RAM Initialized");
 
@@ -1195,6 +1203,7 @@ void ESPectrum::reset() {
         ESPectrum::JoyVKTranslation[n] = (fabgl::VirtualKey) Config::joydef[n];
 
     MemESP::Reset(); // Reset Memory
+    MultifaceOne::Reset(true);
 
     VIDEO::Reset();
 
@@ -1480,7 +1489,10 @@ IRAM_ATTR void ESPectrum::processKeyboard() {
 
                     int64_t osd_start = esp_timer_get_time();
 
-                    OSD::do_OSD(KeytoESP, Kbd->isVKDown(fabgl::VK_LCTRL) || Kbd->isVKDown(fabgl::VK_RCTRL), Kbd->isVKDown(fabgl::VK_LSHIFT) || Kbd->isVKDown(fabgl::VK_RSHIFT));
+                    OSD::do_OSD(KeytoESP,
+                        Kbd->isVKDown(fabgl::VK_LCTRL) || Kbd->isVKDown(fabgl::VK_RCTRL),
+                        Kbd->isVKDown(fabgl::VK_LSHIFT) || Kbd->isVKDown(fabgl::VK_RSHIFT),
+                        Kbd->isVKDown(fabgl::VK_LALT) || Kbd->isVKDown(fabgl::VK_RALT));
 
                     Kbd->emptyVirtualKeyQueue();
 
@@ -1946,7 +1958,7 @@ IRAM_ATTR void ESPectrum::processKeyboard() {
                 else if (ZXKBD_T) OSD::do_OSD(fabgl::VK_F4,0,true); // T -> Tape browser
                 else if (ZXKBD_B) CaptureToBmp(); // B -> BMP capture
                 else if (ZXKBD_O) OSD::do_OSD(fabgl::VK_F9,true,0); // O -> Poke
-                else if (ZXKBD_N) OSD::do_OSD(fabgl::VK_F10,true,0); // N -> NMI
+                else if (ZXKBD_N) OSD::do_OSD(fabgl::VK_F10,true,0); // N -> NMI / Multiface red button
                 else if (ZXKBD_K) OSD::do_OSD(fabgl::VK_F1,true,0); // K -> Help / Kbd layout
                 else if (ZXKBD_L) OSD::do_OSD(fabgl::VK_F2, 0, true); // L -> Audio in toggle
                 else if (ZXKBD_S) OSD::do_OSD(fabgl::VK_F3,true,0); // S -> 2nd PS/2 device
@@ -2026,7 +2038,7 @@ IRAM_ATTR void ESPectrum::processKeyboard() {
                         OSD::do_OSD(fabgl::VK_F11,0,0);
                         break;
                     case RST_ACTION_NMI:
-                        Z80::triggerNMI();
+                        MultifaceOne::pressButton();
                         break;
                     case RST_ACTION_STATS:
                         OSD::do_OSD(fabgl::VK_F8,0,0);

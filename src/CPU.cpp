@@ -39,6 +39,7 @@ To Contact the dev team you can write to zxespectrum@gmail.com
 #include "ESPConfig.h"
 #include "Video.h"
 #include "Z80_JLS/z80.h"
+#include "MultifaceOne.h"
 
 // #pragma GCC optimize("O3")
 
@@ -205,8 +206,19 @@ IRAM_ATTR void CPU::loop() {
 
     // Check NMI
     if (Z80::isNMI()) {
+        printf("MF1:CPU loop saw activeNMI PC=%04X mf_nmiPend=%d\n",
+               (unsigned)Z80::getRegPC(),
+               (int)MultifaceOne::nmiPending);
         Z80::execute();
         Z80::doNMI();
+        printf("MF1:after doNMI PC=%04X paged=%d\n",
+               (unsigned)Z80::getRegPC(),
+               (int)MultifaceOne::paged);
+        // First opcode at $0066 only if Multiface actually paged in
+        if (MultifaceOne::paged) {
+            Z80::execute();
+            printf("MF1:after 1st MF insn PC=%04X\n", (unsigned)Z80::getRegPC());
+        }
     }
 
     while (tstates < IntEnd) Z80::execute();
@@ -305,9 +317,12 @@ IRAM_ATTR uint8_t Z80Ops::fetchOpcode_2A3() {
 
 // Fetch opcode from RAM (NON +2A/3 version)
 IRAM_ATTR uint8_t Z80Ops::fetchOpcode_std() {
-    uint8_t pg = Z80::getRegPC() >> 14;
+    uint16_t pc = Z80::getRegPC();
+    if (MultifaceOne::nmiPending)
+        MultifaceOne::checkFetch(pc);
+    uint8_t pg = pc >> 14;
     VIDEO::Draw_Opcode(MemESP::ramContended[pg]);
-    return MemESP::ramCurrent[pg][Z80::getRegPC() & 0x3fff];
+    return MemESP::ramCurrent[pg][pc & 0x3fff];
 }
 
 // Read byte from RAM (+2A/+3 version)
@@ -357,6 +372,9 @@ IRAM_ATTR void Z80Ops::poke8_std(uint16_t address, uint8_t value) {
     uint8_t page = address >> 14;
 
     if (page == 0) {
+        // Multiface One RAM at 0x2000–0x3FFF when paged in
+        if (MultifaceOne::writeAllowed(address))
+            MemESP::ramCurrent[0][address & 0x3fff] = value;
         VIDEO::Draw(3, false);
         return;
     }
@@ -461,6 +479,10 @@ IRAM_ATTR void Z80Ops::poke16_std(uint16_t address, RegisterPair word) {
     if (page_addr < 0x3fff) {    // Check if address is between two different pages
 
         if (page == 0) {
+            if (MultifaceOne::writeAllowed(address)) {
+                MemESP::ramCurrent[0][page_addr] = word.byte8.lo;
+                MemESP::ramCurrent[0][page_addr + 1] = word.byte8.hi;
+            }
             VIDEO::Draw(6, false);
             return;
         }

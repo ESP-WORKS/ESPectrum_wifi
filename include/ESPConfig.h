@@ -183,6 +183,10 @@ public:
 
     static bool tapFPI; // Fast program index
 
+    // Multiface One (48K). ROM from /sd/ESPectrum WIFI/mf1.rom
+    static bool MultifaceOne;
+    static bool MultifaceOneStealth; // physical switch OFF (invisible to software)
+
 };
 
 #endif // ESPConfig.h
